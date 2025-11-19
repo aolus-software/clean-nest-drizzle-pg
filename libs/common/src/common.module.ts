@@ -1,8 +1,12 @@
-import { Module } from '@nestjs/common';
-import { CommonService } from './common.service';
+import { Module } from "@nestjs/common";
+import { CommonService } from "./common.service";
+import { ThrottlerModule } from "./throttler/throttler.module";
+import { CacheModule } from "./cache/cache.module";
+import { MailModule } from "./mail/mail.module";
 
 @Module({
-  providers: [CommonService],
-  exports: [CommonService],
+	providers: [CommonService],
+	exports: [CommonService],
+	imports: [ThrottlerModule, CacheModule, MailModule],
 })
 export class CommonModule {}

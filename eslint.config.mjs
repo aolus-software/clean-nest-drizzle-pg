@@ -51,13 +51,16 @@ export default tseslint.config(
 				{ avoidEscape: true, allowTemplateLiterals: true },
 			],
 			semi: ["error", "always"],
+			"@typescript-eslint/no-unused-vars": [
+				"error",
+				{ argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+			],
 
 			"no-unused-expressions": "error",
-			"no-unused-vars": "error",
 			"no-console": "error",
 			"no-undef": "off",
-			"no-redeclare": "warn",
-			"no-shadow": "warn",
+			"no-redeclare": "error",
+			"no-shadow": "error",
 		},
 	},
 );
