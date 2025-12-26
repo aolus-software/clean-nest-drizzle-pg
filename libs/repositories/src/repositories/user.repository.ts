@@ -70,11 +70,14 @@ export interface UserInformation {
 	id: string;
 	email: string;
 	name: string;
-	roles: string[];
-	permissions: {
+	status: UserStatusEnum;
+	createdAt: Date | null;
+	updatedAt: Date | null;
+	roles: {
 		name: string;
 		permissions: string[];
 	}[];
+	permissions: string[];
 }
 
 export const UserRepository = () => {
@@ -227,7 +230,8 @@ export const UserRepository = () => {
 				meta: {
 					page,
 					limit,
-					total: totalCount,
+					totalCount,
+					totalPages: Math.ceil(totalCount / limit),
 				},
 			};
 		},
@@ -420,6 +424,9 @@ export const UserRepository = () => {
 					id: true,
 					email: true,
 					name: true,
+					status: true,
+					created_at: true,
+					updated_at: true,
 				},
 
 				with: {
@@ -466,13 +473,22 @@ export const UserRepository = () => {
 				id: user.id,
 				email: user.email,
 				name: user.name,
-				roles: user.user_roles.map((userRole) => userRole.role.name),
-				permissions: user.user_roles.map((userRole) => ({
-					name: userRole.role.name,
-					permissions: userRole.role.role_permissions.map(
+				status: user.status as UserStatusEnum,
+				roles: user.user_roles.map((userRole) => {
+					return {
+						name: userRole.role.name,
+						permissions: userRole.role.role_permissions.map(
+							(rolePermission) => rolePermission.permission.name,
+						),
+					};
+				}),
+				permissions: user.user_roles.flatMap((userRole) =>
+					userRole.role.role_permissions.map(
 						(rolePermission) => rolePermission.permission.name,
 					),
-				})),
+				),
+				createdAt: user.created_at,
+				updatedAt: user.updated_at,
 			};
 		},
 

@@ -12,6 +12,12 @@ import { user_roles_table } from "./rbac.schema";
 import { password_reset_tokens_table } from "./reset-password-token.schema";
 
 export type UserStatusEnum = "active" | "inactive" | "suspended" | "blocked";
+export const UserStatusEnumArray: Array<UserStatusEnum> = [
+	"active",
+	"inactive",
+	"suspended",
+	"blocked",
+];
 
 export const user_status_enum = pgEnum("user_status", [
 	"active",

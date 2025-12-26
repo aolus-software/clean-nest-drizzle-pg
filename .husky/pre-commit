@@ -1,4 +1,4 @@
-npm install
-npm run format
-npm run lint
-npm run build
+bun install
+bun run format
+bun run lint
+bun run build
