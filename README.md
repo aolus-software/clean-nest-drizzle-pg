@@ -1,98 +1,298 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Clean Nest Drizzle PG
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A production-ready **Clean Architecture** boilerplate built with [NestJS](https://nestjs.com/), [Drizzle ORM](https://orm.drizzle.team/), and [PostgreSQL](https://www.postgresql.org/).
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## Features
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- **Clean Architecture** - Separation of concerns with well-organized layers
+- **Fastify** - High-performance HTTP server adapter
+- **Drizzle ORM** - Type-safe and lightweight ORM for PostgreSQL
+- **Authentication** - JWT-based auth with access & refresh tokens
+- **Redis Caching** - Built-in caching with Redis via `cache-manager`
+- **Email Service** - Nodemailer integration with Handlebars templates
+- **API Documentation** - Swagger/OpenAPI with Scalar UI
+- **Rate Limiting** - Request throttling with `@nestjs/throttler`
+- **Health Checks** - Readiness and liveness probes via `@nestjs/terminus`
+- **Background Jobs** - BullMQ for async task processing
+- **Docker Ready** - Pre-configured Docker Compose setup
+- **Testing** - Jest setup for unit & e2e tests
 
-## Project setup
+---
 
-```bash
-$ npm install
+## Tech Stack
+
+| Layer         | Technology                                                                 |
+| ------------- | -------------------------------------------------------------------------- |
+| **Runtime**   | [Bun](https://bun.sh/) / [Node.js](https://nodejs.org/)                    |
+| **Framework** | [NestJS](https://nestjs.com/) with [Fastify](https://fastify.dev/) adapter |
+| **ORM**       | [Drizzle ORM](https://orm.drizzle.team/)                                   |
+| **Database**  | [PostgreSQL 17](https://www.postgresql.org/)                               |
+| **Cache**     | [Redis 8](https://redis.io/)                                               |
+| **Queue**     | [BullMQ](https://bullmq.io/)                                               |
+| **Auth**      | [Passport.js](http://www.passportjs.org/) + JWT                            |
+| **Docs**      | [Swagger](https://swagger.io/) + [Scalar](https://scalar.com/)             |
+
+---
+
+## Project Structure
+
+```
+├── src/
+│   ├── auth/                 # Authentication module
+│   ├── health/               # Health check endpoints
+│   ├── settings/             # Settings module (users, roles, permissions)
+│   ├── app.module.ts         # Root application module
+│   └── main.ts               # Application entry point
+├── libs/
+│   ├── common/               # Shared utilities, guards, pipes, decorators
+│   ├── repositories/         # Database schemas, migrations, repositories
+│   └── utils/                # Helper utilities
+├── docker-compose.yml        # Docker services configuration
+├── drizzle.config.ts         # Drizzle ORM configuration
+├── Makefile                  # Development commands
+└── package.json
 ```
 
-## Compile and run the project
+---
+
+## Getting Started
+
+### Prerequisites
+
+- [Bun](https://bun.sh/) >= 1.0.0 or [Node.js](https://nodejs.org/) >= 18.0.0
+- [Docker](https://www.docker.com/) & [Docker Compose](https://docs.docker.com/compose/)
+
+### Installation
+
+1. **Clone the repository**
+
+   ```bash
+   git clone https://github.com/aolus-software/clean-nest-drizzle-pg.git
+   cd clean-nest-drizzle-pg
+   ```
+
+2. **Install dependencies**
+
+   ```bash
+   bun install
+   ```
+
+3. **Set up environment variables**
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Update `.env` with your configuration:
+
+   ```env
+   APP_NAME="Clean Nest"
+   APP_SECRET=your_secret_key_here
+   APP_PORT=8001
+
+   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/app_db
+
+   JWT_SECRET=your_jwt_secret
+   JWT_REFRESH_SECRET=your_refresh_secret
+   JWT_EXPIRES_IN=1d
+   JWT_REFRESH_EXPIRES_IN=7d
+
+   REDIS_HOST=localhost
+   REDIS_PORT=6379
+
+   # Mail Configuration (optional)
+   MAIL_HOST=
+   MAIL_PORT=
+   MAIL_USERNAME=
+   MAIL_PASSWORD=
+   MAIL_FROM="noreply@example.com"
+   ```
+
+4. **Start Docker services**
+
+   ```bash
+   docker-compose up -d
+   ```
+
+   This will start:
+   - PostgreSQL 17 on port `5432`
+   - Redis 8 on port `6379`
+
+5. **Run database migrations**
+
+   ```bash
+   make db-migrate-dev
+   ```
+
+6. **Start the development server**
+
+   ```bash
+   make dev
+   ```
+
+7. **Access the application**
+   - API: http://localhost:8001
+   - API Documentation: http://localhost:8001/docs
+
+---
+
+## Makefile Commands
+
+Run `make help` to see all available commands:
+
+| Command               | Description                               |
+| --------------------- | ----------------------------------------- |
+| `make dev`            | Start the development server              |
+| `make build`          | Build the project                         |
+| `make lint`           | Lint the project                          |
+| `make format`         | Format the project                        |
+| `make test`           | Run tests                                 |
+| `make test-watch`     | Run tests in watch mode                   |
+| `make db-migrate`     | Run database migrations (prod)            |
+| `make db-migrate-dev` | Run database migrations (dev)             |
+| `make db-seed`        | Run database seeder                       |
+| `make db-reset`       | Reset database                            |
+| `make db-studio`      | Start drizzle-kit Studio                  |
+| `make deploy-prep`    | Prepare the project for deployment        |
+
+---
+
+## npm Scripts
+
+| Command              | Description                           |
+| -------------------- | ------------------------------------- |
+| `bun run start:dev`  | Start in development mode (watch)     |
+| `bun run start:prod` | Start in production mode              |
+| `bun run build`      | Build for production                  |
+| `bun run lint`       | Lint and fix code                     |
+| `bun run format`     | Format code with Prettier             |
+| `bun run test`       | Run unit tests                        |
+| `bun run test:e2e`   | Run end-to-end tests                  |
+| `bun run test:cov`   | Run tests with coverage               |
+
+---
+
+## Docker Services
+
+The `docker-compose.yml` includes:
+
+| Service      | Image         | Port  | Description                    |
+| ------------ | ------------- | ----- | ------------------------------ |
+| **postgres** | postgres:17   | 5432  | PostgreSQL database            |
+| **redis**    | redis:8       | 6379  | Redis cache & queue backend    |
 
 ```bash
-# development
-$ npm run start
+# Start services
+docker-compose up -d
 
-# watch mode
-$ npm run start:dev
+# Stop services
+docker-compose down
 
-# production mode
-$ npm run start:prod
+# View logs
+docker-compose logs -f
 ```
 
-## Run tests
+---
+
+## API Documentation
+
+Once the application is running, access the interactive API documentation at:
+
+- **Scalar UI**: http://localhost:8001/docs
+
+The documentation includes all available endpoints, request/response schemas, and authentication setup.
+
+---
+
+## Database Management
+
+This project uses Drizzle ORM with Drizzle Kit for migrations.
 
 ```bash
-# unit tests
-$ npm run test
+# Generate migrations
+bunx --bun drizzle-kit generate
 
-# e2e tests
-$ npm run test:e2e
+# Run migrations
+bunx --bun drizzle-kit migrate
 
-# test coverage
-$ npm run test:cov
+# Open Drizzle Studio
+make db-studio
 ```
+
+---
+
+## Testing
+
+```bash
+# Unit tests
+bun run test
+
+# Watch mode
+bun run test:watch
+
+# Coverage
+bun run test:cov
+
+# E2E tests
+bun run test:e2e
+```
+
+---
 
 ## Deployment
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Prepare for production:
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+make deploy-prep
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+This will install dependencies with frozen lockfile, run database migrations, and build the production bundle.
 
-## Resources
+Start in production:
 
-Check out a few resources that may come in handy when working with NestJS:
+```bash
+bun run start:prod
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+---
 
-## Support
+## Environment Variables
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+| Variable              | Description                        | Default                |
+| --------------------- | ---------------------------------- | ---------------------- |
+| `APP_NAME`            | Application name                   | `Clean Nest`           |
+| `APP_SECRET`          | Application secret key             | -                      |
+| `APP_PORT`            | Server port                        | `8001`                 |
+| `APP_URL`             | Application URL                    | `localhost:8001`       |
+| `APP_TIMEZONE`        | Application timezone               | `UTC`                  |
+| `APP_ENV`             | Environment                        | `development`          |
+| `DATABASE_URL`        | PostgreSQL connection string       | -                      |
+| `JWT_SECRET`          | JWT signing secret                 | -                      |
+| `JWT_REFRESH_SECRET`  | Refresh token secret               | -                      |
+| `JWT_EXPIRES_IN`      | Access token expiry                | `1d`                   |
+| `JWT_REFRESH_EXPIRES_IN` | Refresh token expiry            | `7d`                   |
+| `REDIS_HOST`          | Redis host                         | `localhost`            |
+| `REDIS_PORT`          | Redis port                         | `6379`                 |
+| `REDIS_PASSWORD`      | Redis password                     | -                      |
+| `REDIS_TTL`           | Cache TTL in seconds               | `3600`                 |
+| `THROTTLER_TTL`       | Rate limit window (seconds)        | `60`                   |
+| `THROTTLER_LIMIT`     | Max requests per window            | `60`                   |
+| `MAIL_HOST`           | SMTP host                          | -                      |
+| `MAIL_PORT`           | SMTP port                          | -                      |
+| `MAIL_USERNAME`       | SMTP username                      | -                      |
+| `MAIL_PASSWORD`       | SMTP password                      | -                      |
+| `MAIL_FROM`           | Default sender email               | `noreply@example.com`  |
 
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+---
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+```
+MIT License
+Copyright (c) 2025 Aolus Software
+```
