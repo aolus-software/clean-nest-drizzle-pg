@@ -1,11 +1,11 @@
 import { Controller, Get, Res } from "@nestjs/common";
-import { Response } from "express";
+import { FastifyReply } from "fastify";
 
 @Controller()
 export class AppController {
 	@Get()
-	getHello(@Res() res: Response): Response {
-		return res.json({
+	getHello(@Res() res: FastifyReply): FastifyReply {
+		return res.send({
 			message: "Welcome to the backend service",
 		});
 	}
