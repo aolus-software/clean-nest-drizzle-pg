@@ -1,5 +1,6 @@
 import { CacheService } from "@common/cache/cache.service";
 import { UserCache } from "@common/cache/const";
+import { getEnv } from "@config";
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { PassportStrategy } from "@nestjs/passport";
 import {
@@ -15,7 +16,7 @@ export class AuthStrategy extends PassportStrategy(Strategy, "jwt") {
 		super({
 			jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
 			ignoreExpiration: false,
-			secretOrKey: process.env.JWT_SECRET || "default-secret",
+			secretOrKey: getEnv().JWT_SECRET || "default-secret",
 		});
 	}
 

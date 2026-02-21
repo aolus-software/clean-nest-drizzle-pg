@@ -19,6 +19,8 @@ import { DateUtils, HashUtils, StrUtils } from "@utils";
 import { UpdatePasswordDto } from "./dto/update-password.dto";
 import { UpdateStatusDto } from "./dto/update-status.dto";
 import { and, eq, isNull } from "drizzle-orm";
+import { getEnv } from "@config";
+import { emailVerificationLifetime } from "@utils/default/token-lifetime";
 
 @Injectable()
 export class UsersService {
@@ -72,7 +74,7 @@ export class UsersService {
 				template: "auth/verify-email",
 				context: {
 					name: createUserDto.name,
-					verifyUrl: `${process.env.FRONTEND_URL}/verify-email?token=${token}`,
+					verifyUrl: `${getEnv().FRONTEND_URL}/verify-email?token=${token}`,
 				},
 			});
 		});
@@ -103,7 +105,7 @@ export class UsersService {
 		await db.insert(email_verifications_table).values({
 			user_id: user.id,
 			token,
-			expired_at: DateUtils.addHours(DateUtils.now(), 2).toDate(),
+			expired_at: emailVerificationLifetime,
 		});
 
 		await this.mailService.sendMail({
@@ -112,7 +114,7 @@ export class UsersService {
 			template: "auth/verify-email",
 			context: {
 				name: user.name,
-				verifyUrl: `${process.env.FRONTEND_URL}/verify-email?token=${token}`,
+				verifyUrl: `${getEnv().FRONTEND_URL}/verify-email?token=${token}`,
 			},
 		});
 	}
@@ -230,7 +232,7 @@ export class UsersService {
 			template: "auth/forgot-password",
 			context: {
 				name: user.name,
-				resetUrl: `${process.env.FRONTEND_URL}/reset-password?token=${token}`,
+				resetUrl: `${getEnv().FRONTEND_URL}/reset-password?token=${token}`,
 			},
 		});
 	}

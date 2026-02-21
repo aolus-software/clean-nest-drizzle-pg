@@ -6,8 +6,9 @@ export * from "./repositories/index";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { schema } from "./schema/index";
+import { getEnv } from "@config";
 
-const connectionString = process.env.DATABASE_URL!;
+const connectionString = getEnv().DATABASE_URL;
 const client = new Pool({ connectionString });
 
 const db = drizzle(client, {

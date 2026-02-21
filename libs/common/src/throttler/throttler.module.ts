@@ -1,3 +1,4 @@
+import { getEnv } from "@config";
 import { Module } from "@nestjs/common";
 import {
 	ThrottlerModule as NodeThrottlerModule,
@@ -9,8 +10,8 @@ import {
 		NodeThrottlerModule.forRoot({
 			throttlers: [
 				{
-					ttl: seconds(Number(process.env.THROTTLER_TTL) || 60),
-					limit: Number(process.env.THROTTLER_LIMIT) || 100,
+					ttl: seconds(getEnv().THROTTLER_TTL || 60),
+					limit: Number(getEnv().THROTTLER_LIMIT) || 100,
 				},
 			],
 		}),

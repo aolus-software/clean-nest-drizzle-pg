@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
+import { getEnv } from "@config";
 import * as CryptoJS from "crypto-js";
 
 export class EncryptionUtils {
-	private static readonly secretKey =
-		process.env.APP_SECRET || "default-secret-key";
+	private static readonly secretKey = getEnv().APP_SECRET;
 
 	static encrypt(text: string): string {
 		return CryptoJS.AES.encrypt(text, this.secretKey).toString() as string;

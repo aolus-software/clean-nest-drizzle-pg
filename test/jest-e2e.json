@@ -13,6 +13,7 @@
   "moduleNameMapper": {
     "^@common(|/.*)$": "<rootDir>/../libs/common/src/$1",
     "^@repositories/repositories(|/.*)$": "<rootDir>/../libs/repositories/src/$1",
-    "^@utils(|/.*)$": "<rootDir>/../libs/utils/src/$1"
+    "^@utils(|/.*)$": "<rootDir>/../libs/utils/src/$1",
+    "^config/config(|/.*)$": "<rootDir>/../libs/config/src/$1"
   }
 }

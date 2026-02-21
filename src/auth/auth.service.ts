@@ -18,6 +18,11 @@ import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { ResetPasswordTokenValidationDto } from "./dto/reset-password-token-validation.dto";
 import { and, eq, isNotNull } from "drizzle-orm";
+import { getEnv } from "@config";
+import {
+	emailVerificationLifetime,
+	resetPasswordLifetime,
+} from "@utils/default/token-lifetime";
 
 @Injectable()
 export class AuthService {
@@ -145,7 +150,7 @@ export class AuthService {
 			await tx.insert(email_verifications_table).values({
 				user_id: newUser[0].id,
 				token: token,
-				expired_at: DateUtils.addHours(DateUtils.now(), 2).toDate(),
+				expired_at: emailVerificationLifetime,
 			});
 
 			await this.mailService.sendMail({
@@ -154,7 +159,7 @@ export class AuthService {
 				template: "auth/verify-email",
 				context: {
 					name: data.name,
-					verifyUrl: `${process.env.FRONTEND_URL}/verify-email?token=${token}`,
+					verifyUrl: `${getEnv().FRONTEND_URL}/verify-email?token=${token}`,
 				},
 			});
 		});
@@ -182,7 +187,7 @@ export class AuthService {
 			await tx.insert(email_verifications_table).values({
 				user_id: user.id,
 				token: token,
-				expired_at: DateUtils.addHours(DateUtils.now(), 2).toDate(),
+				expired_at: emailVerificationLifetime,
 			});
 
 			await this.mailService.sendMail({
@@ -191,7 +196,7 @@ export class AuthService {
 				template: "auth/verify-email",
 				context: {
 					name: user.name,
-					verifyUrl: `${process.env.FRONTEND_URL}/verify-email?token=${token}`,
+					verifyUrl: `${getEnv().FRONTEND_URL}/verify-email?token=${token}`,
 				},
 			});
 		});
@@ -265,7 +270,7 @@ export class AuthService {
 			await tx.insert(password_reset_tokens_table).values({
 				user_id: user.id,
 				token: token,
-				expired_at: DateUtils.addHours(DateUtils.now(), 2).toDate(),
+				expired_at: resetPasswordLifetime,
 			});
 
 			await this.mailService.sendMail({
@@ -274,7 +279,7 @@ export class AuthService {
 				template: "auth/forgot-password",
 				context: {
 					name: user.name,
-					resetUrl: `${process.env.FRONTEND_URL}/reset-password?token=${token}`,
+					resetUrl: `${getEnv().FRONTEND_URL}/reset-password?token=${token}`,
 				},
 			});
 		});

@@ -4,26 +4,25 @@ import { MailerModule } from "@nestjs-modules/mailer";
 import { HandlebarsAdapter } from "@nestjs-modules/mailer/dist/adapters/handlebars.adapter";
 import { BullModule } from "@nestjs/bullmq";
 import { join } from "path";
-import { ConfigModule } from "@nestjs/config";
 import { MailProcessor } from "./mail.processor";
+import { getEnv } from "@config";
 
 @Module({
 	providers: [MailService, MailProcessor],
 	imports: [
-		ConfigModule.forRoot(),
 		MailerModule.forRootAsync({
 			useFactory: () => ({
 				transport: {
-					host: process.env.MAIL_HOST,
-					port: parseInt(process.env.MAIL_PORT || "0", 10),
-					secure: process.env.MAIL_SECURE === "true",
+					host: getEnv().MAIL_HOST,
+					port: getEnv().MAIL_PORT,
+					secure: getEnv().MAIL_SECURE,
 					auth: {
-						user: process.env.MAIL_USERNAME,
-						pass: process.env.MAIL_PASSWORD,
+						user: getEnv().MAIL_USERNAME,
+						pass: getEnv().MAIL_PASSWORD,
 					},
 				},
 				defaults: {
-					from: process.env.MAIL_FROM,
+					from: getEnv().MAIL_FROM,
 				},
 
 				template: {
@@ -46,9 +45,9 @@ import { MailProcessor } from "./mail.processor";
 		BullModule.registerQueue({
 			name: "mail-queue",
 			connection: {
-				host: process.env.REDIS_HOST || "localhost",
-				port: Number(process.env.REDIS_PORT) || 6379,
-				password: process.env.REDIS_PASSWORD || undefined,
+				host: getEnv().REDIS_HOST,
+				port: getEnv().REDIS_PORT,
+				password: getEnv().REDIS_PASSWORD,
 			},
 		}),
 	],
