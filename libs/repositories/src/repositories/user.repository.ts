@@ -515,6 +515,9 @@ export const UserRepository = () => {
 			if (!user) {
 				throw new UnprocessableEntityException({
 					message: "Invalid credentials",
+					errors: {
+						email: ["Invalid email or password"],
+					},
 				});
 			}
 
