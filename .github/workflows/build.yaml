@@ -6,59 +6,20 @@ on:
       - dev
       - staging
       - main
+  pull_request:
+    branches:
+      - dev
+      - staging
+      - main
 
 jobs:
-  lint-and-format:
-    name: Lint and Format Check
-    runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:latest
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: "22"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Generate Drizzle client
-        run: npx drizzle-kit generate
-        env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
-
-      - name: Check formatting
-        run: npm run format
-
-      - name: Run linter
-        run: npm run lint
-
   build:
     name: Build Application
     runs-on: ubuntu-latest
-    needs: lint-and-format
 
     services:
       postgres:
-        image: postgres:latest
+        image: postgres:17
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -71,38 +32,72 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: "22"
-          cache: "npm"
+          bun-version: latest
+
+      - name: Setup .env
+        run: |
+          echo "APP_NAME=CleanNest" >> .env
+          echo "APP_VERSION=1.0.0" >> .env
+          echo "APP_SECRET=ci-app-secret" >> .env
+          echo "APP_PORT=8001" >> .env
+          echo "APP_URL=localhost:8001" >> .env
+          echo "APP_TIMEZONE=UTC" >> .env
+          echo "NODE_ENV=test" >> .env
+          echo "FRONTEND_URL=http://localhost:3000" >> .env
+          echo "DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres" >> .env
+          echo "JWT_SECRET=$(openssl rand -hex 32)" >> .env
+          echo "JWT_REFRESH_SECRET=$(openssl rand -hex 32)" >> .env
+          echo "JWT_EXPIRES_IN=1d" >> .env
+          echo "JWT_REFRESH_EXPIRES_IN=7d" >> .env
+          echo "THROTTLER_TTL=60" >> .env
+          echo "THROTTLER_LIMIT=60" >> .env
+          echo "ALLOWED_ORIGINS=*" >> .env
+          echo "ALLOWED_METHODS=GET,POST,PUT,PATCH,DELETE,OPTIONS" >> .env
+          echo "ALLOWED_HEADERS=Content-Type, Authorization" >> .env
+          echo "MAX_AGE=3600" >> .env
+          echo "CREDENTIALS=true" >> .env
+          echo "REDIS_HOST=localhost" >> .env
+          echo "REDIS_PORT=6379" >> .env
+          echo "REDIS_PASSWORD=" >> .env
+          echo "REDIS_TTL=3600" >> .env
+          echo "MAIL_HOST=localhost" >> .env
+          echo "MAIL_PORT=2525" >> .env
+          echo "MAIL_SECURE=false" >> .env
+          echo "MAIL_USERNAME=ci" >> .env
+          echo "MAIL_PASSWORD=password" >> .env
+          echo "MAIL_FROM=noreply@example.com" >> .env
+          echo "MAIL_DEFAULT_SUBJECT=Clean Nest" >> .env
 
       - name: Install dependencies
-        run: npm install
-        env:
-          npm_config_ignore_scripts: true
+        run: bun install --frozen-lockfile
 
-      - name: Generate Drizzle client
-        run: npx drizzle-kit generate
-        env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      - name: Check formatting
+        run: bun run format
 
-      - name: Validate schema
-        run: npx drizzle-kit check
-        env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      - name: Run linter
+        run: bun run lint:fix
 
-      - name: Deploy migrations
-        run: npx drizzle-kit migrate
-        env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      - name: Generate Drizzle migrations
+        run: bunx drizzle-kit generate
+
+      - name: Run Drizzle migrations
+        run: bunx drizzle-kit migrate
+
+      - name: Type check
+        run: bun run tsc --noEmit
 
       - name: Build application
-        run: npm run build
+        run: bun run build
 
   # deploy-dev:
   #   name: Deploy to Development
@@ -120,14 +115,14 @@ jobs:
   #         key: ${{ secrets.DEV_SSH_KEY }}
   #         port: ${{ secrets.DEV_PORT }}
   #         script: |
-  #           export NVM_DIR="$HOME/.nvm"
-  #           [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  #           export BUN_INSTALL="$HOME/.bun"
+  #           export PATH="$BUN_INSTALL/bin:$PATH"
   #           cd ${{ secrets.DEV_APP_DIRECTORY }}
   #           git pull origin dev
-  #           npm install
-  #           npx drizzle-kit generate
-  #           npx drizzle-kit migrate
-  #           npm run build
+  #           bun install --frozen-lockfile
+  #           bunx drizzle-kit generate
+  #           bunx drizzle-kit migrate
+  #           bun run build
   #           pm2 reload ${{ secrets.DEV_PM2_APP_NAME }}
 
   # deploy-staging:
@@ -146,14 +141,14 @@ jobs:
   #         key: ${{ secrets.STAGING_SSH_KEY }}
   #         port: ${{ secrets.STAGING_PORT }}
   #         script: |
-  #           export NVM_DIR="$HOME/.nvm"
-  #           [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  #           export BUN_INSTALL="$HOME/.bun"
+  #           export PATH="$BUN_INSTALL/bin:$PATH"
   #           cd ${{ secrets.STAGING_APP_DIRECTORY }}
   #           git pull origin staging
-  #           npm install
-  #           npx drizzle-kit generate
-  #           npx drizzle-kit migrate
-  #           npm run build
+  #           bun install --frozen-lockfile
+  #           bunx drizzle-kit generate
+  #           bunx drizzle-kit migrate
+  #           bun run build
   #           pm2 reload ${{ secrets.STAGING_PM2_APP_NAME }}
 
   # deploy-production:
@@ -172,12 +167,12 @@ jobs:
   #         key: ${{ secrets.PRODUCTION_SSH_KEY }}
   #         port: ${{ secrets.PRODUCTION_PORT }}
   #         script: |
-  #           export NVM_DIR="$HOME/.nvm"
-  #           [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  #           export BUN_INSTALL="$HOME/.bun"
+  #           export PATH="$BUN_INSTALL/bin:$PATH"
   #           cd ${{ secrets.PRODUCTION_APP_DIRECTORY }}
   #           git pull origin main
-  #           npm install
-  #           npx drizzle-kit generate
-  #           npx drizzle-kit migrate
-  #           npm run build
+  #           bun install --frozen-lockfile
+  #           bunx drizzle-kit generate
+  #           bunx drizzle-kit migrate
+  #           bun run build
   #           pm2 reload ${{ secrets.PRODUCTION_PM2_APP_NAME }}

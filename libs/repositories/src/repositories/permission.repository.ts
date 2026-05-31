@@ -85,7 +85,7 @@ export const PermissionRepository = () => {
 				Object.keys(validateOrderBy) as OrderableKey[]
 			).includes(orderBy as OrderableKey)
 				? (orderBy as OrderableKey)
-				: ("id" as OrderableKey);
+				: "id";
 
 			const orderColumn = validateOrderBy[normalizedOrderBy];
 

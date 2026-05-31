@@ -9,6 +9,8 @@ help:
 	@echo ""
 	@echo "Available commands:"
 	@echo "  make dev             - Start the development server"
+	@echo "  make start           - Start the project"
+	@echo "  make typecheck       - Run type checks"
 	@echo "  make build           - Build the project"
 	@echo "  make lint            - Lint the project"
 	@echo "  make format          - Format the project"
@@ -30,11 +32,26 @@ dev:
 	bun run start:dev
 
 # ===========================
+# typecheck:
+# ===========================
+typecheck:
+	@echo "Running type checks..."
+	bun run typecheck
+
+
+# ===========================
 # Build
 # ===========================
 build:
 	@echo "Building the project..."
 	bun run build
+
+# ===========================
+# Start
+# ===========================
+start:
+	@echo "Starting the project..."
+	bun run start
 
 # ===========================
 # Lint & Format
@@ -91,6 +108,6 @@ deploy-prep:
 # Phony Targets
 # ===========================
 .PHONY: \
-	help dev build lint format test test-watch \
+	help dev start typecheck build lint format test test-watch \
 	db-migrate db-migrate-dev db-seed db-reset db-studio \
 	deploy-prep

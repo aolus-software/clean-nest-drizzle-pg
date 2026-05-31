@@ -13,7 +13,7 @@
 		"target": "ES2023",
 		"sourceMap": true,
 		"outDir": "./dist",
-		"baseUrl": "./",
+		"strictPropertyInitialization": false,
 		"incremental": true,
 		"skipLibCheck": true,
 		"strictNullChecks": true,
@@ -21,16 +21,18 @@
 		"noImplicitAny": false,
 		"strictBindCallApply": false,
 		"noFallthroughCasesInSwitch": false,
+		"rootDir": ".",
 		"paths": {
-			"@common": ["libs/common/src"],
-			"@common/*": ["libs/common/src/*"],
-			"@repositories": ["libs/repositories/src"],
-			"@repositories/*": ["libs/repositories/src/*"],
-			"@utils": ["libs/utils/src"],
-			"@utils/*": ["libs/utils/src/*"],
-			"@config": ["libs/config/src"],
-			"@config/*": ["libs/config/src/*"]
+			"@common": ["./libs/common/src"],
+			"@common/*": ["./libs/common/src/*"],
+			"@repositories": ["./libs/repositories/src"],
+			"@repositories/*": ["./libs/repositories/src/*"],
+			"@utils": ["./libs/utils/src"],
+			"@utils/*": ["./libs/utils/src/*"],
+			"@config": ["./libs/config/src"],
+			"@config/*": ["./libs/config/src/*"]
 		},
 		"typeRoots": ["./node_modules/@types", "./libs/common/src/types"]
-	}
+	},
+	"exclude": ["node_modules", "dist", "build", "coverage", ".claude", ".agents"]
 }
