@@ -9,9 +9,12 @@ import {
 	permissions_table,
 } from "@repositories";
 import { eq } from "drizzle-orm";
+import { I18nService } from "nestjs-i18n";
 
 @Injectable()
 export class PermissionsService {
+	constructor(private readonly i18n: I18nService) {}
+
 	async create(createPermissionDto: CreatePermissionDto): Promise<void> {
 		await db.transaction(async (tx) => {
 			await PermissionRepository().create(createPermissionDto, tx);
@@ -27,7 +30,9 @@ export class PermissionsService {
 	async findOne(id: string): Promise<PermissionList> {
 		const data = await PermissionRepository().findOne(id);
 		if (!data) {
-			throw new NotFoundException(`Permission with ID ${id} not found`);
+			throw new NotFoundException(
+				this.i18n.t("message.permission.not_found", { args: { id } }),
+			);
 		}
 
 		return data;
@@ -41,7 +46,9 @@ export class PermissionsService {
 			where: eq(permissions_table.id, id),
 		});
 		if (!existingPermission) {
-			throw new NotFoundException(`Permission with ID ${id} not found`);
+			throw new NotFoundException(
+				this.i18n.t("message.permission.not_found", { args: { id } }),
+			);
 		}
 
 		await db.transaction(async (tx) => {
@@ -60,7 +67,9 @@ export class PermissionsService {
 			where: eq(permissions_table.id, id),
 		});
 		if (!existingPermission) {
-			throw new NotFoundException(`Permission with ID ${id} not found`);
+			throw new NotFoundException(
+				this.i18n.t("message.permission.not_found", { args: { id } }),
+			);
 		}
 
 		await db.transaction(async (tx) => {

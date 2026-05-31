@@ -10,10 +10,11 @@ import {
 	IsString,
 	IsStrongPassword,
 } from "class-validator";
+import { i18nValidationMessage } from "nestjs-i18n";
 
 export class CreateUserDto {
-	@IsString()
-	@IsNotEmpty()
+	@IsString({ message: i18nValidationMessage("validation.IS_STRING") })
+	@IsNotEmpty({ message: i18nValidationMessage("validation.NOT_EMPTY") })
 	@ApiProperty({
 		example: "John Doe",
 		description: "The full name of the user",
@@ -21,9 +22,9 @@ export class CreateUserDto {
 	})
 	name: string;
 
-	@IsString()
-	@IsNotEmpty()
-	@IsEmail()
+	@IsString({ message: i18nValidationMessage("validation.IS_STRING") })
+	@IsNotEmpty({ message: i18nValidationMessage("validation.NOT_EMPTY") })
+	@IsEmail({}, { message: i18nValidationMessage("validation.IS_EMAIL") })
 	@ApiProperty({
 		example: "johndoe@example.com",
 		description: "The email address of the user. Must be unique.",
@@ -31,9 +32,12 @@ export class CreateUserDto {
 	})
 	email: string;
 
-	@IsString()
-	@IsNotEmpty()
-	@IsStrongPassword()
+	@IsString({ message: i18nValidationMessage("validation.IS_STRING") })
+	@IsNotEmpty({ message: i18nValidationMessage("validation.NOT_EMPTY") })
+	@IsStrongPassword(
+		{},
+		{ message: i18nValidationMessage("validation.IS_STRONG_PASSWORD") },
+	)
 	@ApiProperty({
 		example: "P@ssw0rd123",
 		description: "The password for the user. Must be strong.",
@@ -41,8 +45,10 @@ export class CreateUserDto {
 	})
 	password: string;
 
-	@IsNotEmpty()
-	@IsEnum(UserStatusEnumArray)
+	@IsNotEmpty({ message: i18nValidationMessage("validation.NOT_EMPTY") })
+	@IsEnum(UserStatusEnumArray, {
+		message: i18nValidationMessage("validation.IS_ENUM"),
+	})
 	@ApiProperty({
 		example: UserStatusEnumArray,
 		description: "The status of the user",

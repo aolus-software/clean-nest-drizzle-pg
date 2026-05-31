@@ -14,9 +14,12 @@ import {
 	roles_table,
 } from "@repositories";
 import { and, eq, not } from "drizzle-orm";
+import { I18nService } from "nestjs-i18n";
 
 @Injectable()
 export class RolesService {
+	constructor(private readonly i18n: I18nService) {}
+
 	async create(createRoleDto: CreateRoleDto): Promise<void> {
 		const isNameExists = await db.query.roles.findFirst({
 			where: eq(roles_table.name, createRoleDto.name),
@@ -25,9 +28,9 @@ export class RolesService {
 
 		if (isNameExists) {
 			throw new UnprocessableEntityException({
-				message: "Role name already exists",
+				message: this.i18n.t("message.role.name_exists"),
 				error: {
-					name: ["Role name already exists"],
+					name: [this.i18n.t("message.role.name_exists")],
 				},
 			});
 		}
@@ -40,9 +43,9 @@ export class RolesService {
 
 		if (permissionExists.length !== createRoleDto.permissionIds.length) {
 			throw new UnprocessableEntityException({
-				message: "One or more permissions do not exist",
+				message: this.i18n.t("message.role.permissions_invalid"),
 				error: {
-					permissionIds: ["One or more permissions do not exist"],
+					permissionIds: [this.i18n.t("message.role.permissions_invalid")],
 				},
 			});
 		}
@@ -61,7 +64,7 @@ export class RolesService {
 	async findOne(id: string): Promise<RoleDetail> {
 		const role = await RoleRepository().findOne(id);
 		if (!role) {
-			throw new NotFoundException("Role not found");
+			throw new NotFoundException(this.i18n.t("message.role.not_found"));
 		}
 
 		return role;
@@ -70,7 +73,7 @@ export class RolesService {
 	async update(id: string, updateRoleDto: UpdateRoleDto): Promise<void> {
 		const RoleExist = await RoleRepository().findOne(id);
 		if (!RoleExist) {
-			throw new NotFoundException("Role not found");
+			throw new NotFoundException(this.i18n.t("message.role.not_found"));
 		}
 
 		const isNameExists = await db.query.roles.findFirst({
@@ -83,9 +86,9 @@ export class RolesService {
 
 		if (isNameExists) {
 			throw new UnprocessableEntityException({
-				message: "Role name already exists",
+				message: this.i18n.t("message.role.name_exists"),
 				error: {
-					name: ["Role name already exists"],
+					name: [this.i18n.t("message.role.name_exists")],
 				},
 			});
 		}
@@ -98,9 +101,9 @@ export class RolesService {
 
 		if (permissionExists.length !== updateRoleDto.permissionIds.length) {
 			throw new UnprocessableEntityException({
-				message: "One or more permissions do not exist",
+				message: this.i18n.t("message.role.permissions_invalid"),
 				error: {
-					permissionIds: ["One or more permissions do not exist"],
+					permissionIds: [this.i18n.t("message.role.permissions_invalid")],
 				},
 			});
 		}

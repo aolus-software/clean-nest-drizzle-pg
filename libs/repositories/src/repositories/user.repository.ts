@@ -23,6 +23,7 @@ import {
 	UnauthorizedException,
 	UnprocessableEntityException,
 } from "@nestjs/common";
+import { I18nContext } from "nestjs-i18n";
 
 export type UserList = {
 	id: string;
@@ -252,12 +253,16 @@ export const UserRepository = () => {
 				.limit(1);
 
 			if (isEmailExist.length > 0) {
+				const i18n = I18nContext.current();
 				throw new UnprocessableEntityException({
-					message: "Validation error",
+					message:
+						i18n?.t("message.common.unprocessable_entity") ??
+						"Unprocessable Entity",
 					errors: [
 						{
 							field: "email",
-							message: "Email already exists",
+							message:
+								i18n?.t("message.user.email_exists") ?? "Email already exists",
 						},
 					],
 				});
@@ -329,7 +334,10 @@ export const UserRepository = () => {
 			});
 
 			if (!user) {
-				throw new NotFoundException("User not found");
+				throw new NotFoundException(
+					I18nContext.current()?.t("message.common.user_not_found") ??
+						"User not found",
+				);
 			}
 
 			return {
@@ -358,7 +366,10 @@ export const UserRepository = () => {
 			});
 
 			if (!user) {
-				throw new NotFoundException("User not found");
+				throw new NotFoundException(
+					I18nContext.current()?.t("message.common.user_not_found") ??
+						"User not found",
+				);
 			}
 
 			await database
@@ -399,7 +410,10 @@ export const UserRepository = () => {
 			});
 
 			if (!user) {
-				throw new NotFoundException("User not found");
+				throw new NotFoundException(
+					I18nContext.current()?.t("message.common.user_not_found") ??
+						"User not found",
+				);
 			}
 
 			await database
@@ -466,7 +480,10 @@ export const UserRepository = () => {
 			});
 
 			if (!user) {
-				throw new UnauthorizedException("Unauthorized");
+				throw new UnauthorizedException(
+					I18nContext.current()?.t("message.common.unauthorized") ??
+						"Unauthorized",
+				);
 			}
 
 			return {
@@ -495,7 +512,7 @@ export const UserRepository = () => {
 		findByEmail: async (
 			email: string,
 			tx?: DbTransaction,
-		): Promise<UserForAuth> => {
+		): Promise<UserForAuth | null> => {
 			const database = tx || dbInstance;
 			const user = await database.query.users.findFirst({
 				where: and(
@@ -513,12 +530,7 @@ export const UserRepository = () => {
 			});
 
 			if (!user) {
-				throw new UnprocessableEntityException({
-					message: "Invalid credentials",
-					errors: {
-						email: ["Invalid email or password"],
-					},
-				});
+				return null;
 			}
 
 			return user;

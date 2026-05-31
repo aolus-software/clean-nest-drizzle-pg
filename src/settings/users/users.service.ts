@@ -21,10 +21,14 @@ import { UpdateStatusDto } from "./dto/update-status.dto";
 import { and, eq, isNull } from "drizzle-orm";
 import { getEnv } from "@config";
 import { emailVerificationLifetime } from "@utils/default/token-lifetime";
+import { I18nService } from "nestjs-i18n";
 
 @Injectable()
 export class UsersService {
-	constructor(private readonly mailService: MailService) {}
+	constructor(
+		private readonly mailService: MailService,
+		private readonly i18n: I18nService,
+	) {}
 
 	async create(createUserDto: CreateUserDto): Promise<void> {
 		const isEmailExist = await UserRepository().findByEmail(
@@ -32,9 +36,9 @@ export class UsersService {
 		);
 		if (isEmailExist) {
 			throw new UnprocessableEntityException({
-				message: "Email already exists",
+				message: this.i18n.t("message.user.email_exists"),
 				error: {
-					email: ["Email already exists"],
+					email: [this.i18n.t("message.user.email_exists")],
 				},
 			});
 		}
@@ -53,9 +57,9 @@ export class UsersService {
 
 			if (user.length === 0) {
 				throw new UnprocessableEntityException({
-					message: "User not created",
+					message: this.i18n.t("message.user.not_created"),
 					error: {
-						email: ["User not created"],
+						email: [this.i18n.t("message.user.not_created")],
 					},
 				});
 			}
@@ -69,7 +73,7 @@ export class UsersService {
 
 			// Send verification email
 			await this.mailService.sendMail({
-				subject: "Verify your email address",
+				subject: this.i18n.t("email.verify_email.subject"),
 				to: createUserDto.email,
 				template: "auth/verify-email",
 				context: {
@@ -94,9 +98,9 @@ export class UsersService {
 
 		if (user.email_verified_at) {
 			throw new UnprocessableEntityException({
-				message: "Email is already verified",
+				message: this.i18n.t("message.user.email_already_verified"),
 				error: {
-					email: ["Email is already verified"],
+					email: [this.i18n.t("message.user.email_already_verified")],
 				},
 			});
 		}
@@ -109,7 +113,7 @@ export class UsersService {
 		});
 
 		await this.mailService.sendMail({
-			subject: "Verify your email address",
+			subject: this.i18n.t("email.verify_email.subject"),
 			to: user.email,
 			template: "auth/verify-email",
 			context: {
@@ -128,7 +132,9 @@ export class UsersService {
 	async getDetail(id: string): Promise<UserDetail> {
 		const data = await UserRepository().getDetail(id);
 		if (!data) {
-			throw new NotFoundException(`User with ID ${id} not found`);
+			throw new NotFoundException(
+				this.i18n.t("message.user.not_found", { args: { id } }),
+			);
 		}
 
 		return data;
@@ -137,7 +143,9 @@ export class UsersService {
 	async update(id: string, updateUserDto: UpdateUserDto): Promise<void> {
 		const data = await UserRepository().getDetail(id);
 		if (!data) {
-			throw new NotFoundException(`User with ID ${id} not found`);
+			throw new NotFoundException(
+				this.i18n.t("message.user.not_found", { args: { id } }),
+			);
 		}
 
 		const isEmailExist = await UserRepository().findByEmail(
@@ -168,7 +176,9 @@ export class UsersService {
 	async remove(id: string): Promise<void> {
 		const data = await UserRepository().getDetail(id);
 		if (!data) {
-			throw new NotFoundException(`User with ID ${id} not found`);
+			throw new NotFoundException(
+				this.i18n.t("message.user.not_found", { args: { id } }),
+			);
 		}
 
 		await db.transaction(async (tx) => {
@@ -184,7 +194,9 @@ export class UsersService {
 	async updateStatus(id: string, data: UpdateStatusDto): Promise<void> {
 		const user = await UserRepository().getDetail(id);
 		if (!user) {
-			throw new NotFoundException(`User with ID ${id} not found`);
+			throw new NotFoundException(
+				this.i18n.t("message.user.not_found", { args: { id } }),
+			);
 		}
 
 		await db.transaction(async (tx) => {
@@ -201,7 +213,9 @@ export class UsersService {
 	async updatePassword(id: string, data: UpdatePasswordDto): Promise<void> {
 		const user = await UserRepository().getDetail(id);
 		if (!user) {
-			throw new NotFoundException(`User with ID ${id} not found`);
+			throw new NotFoundException(
+				this.i18n.t("message.user.not_found", { args: { id } }),
+			);
 		}
 
 		const hashedPassword = await HashUtils.generateHash(data.newPassword);
@@ -227,7 +241,7 @@ export class UsersService {
 		});
 
 		await this.mailService.sendMail({
-			subject: "Reset your password",
+			subject: this.i18n.t("email.forgot_password.subject"),
 			to: user.email,
 			template: "auth/forgot-password",
 			context: {

@@ -9,6 +9,7 @@ import {
 } from "@repositories/repositories/user.repository";
 import { JWTPayload } from "@utils";
 import { Strategy, ExtractJwt } from "passport-jwt";
+import { I18nContext } from "nestjs-i18n";
 
 @Injectable()
 export class AuthStrategy extends PassportStrategy(Strategy, "jwt") {
@@ -26,7 +27,10 @@ export class AuthStrategy extends PassportStrategy(Strategy, "jwt") {
 		if (!user) {
 			user = await UserRepository().UserInformation(payload.sub);
 			if (!user) {
-				throw new UnauthorizedException("User not found");
+				throw new UnauthorizedException(
+					I18nContext.current()?.t("message.common.user_not_found") ??
+						"User not found",
+				);
 			}
 			await this._cacheService.set(UserCache(payload.sub), user, null);
 		}

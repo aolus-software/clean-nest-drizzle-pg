@@ -4,9 +4,12 @@ import { ApiOkResponse } from "@nestjs/swagger";
 import { DateUtils } from "@utils";
 import { FastifyReply } from "fastify";
 import { getEnv } from "@config";
+import { I18nService } from "nestjs-i18n";
 
 @Controller()
 export class AppController {
+	constructor(private readonly i18n: I18nService) {}
+
 	@Get()
 	@ApiOkResponse({
 		description: "Welcome message",
@@ -36,11 +39,17 @@ export class AppController {
 	})
 	getHello(@Res() res: FastifyReply): FastifyReply {
 		return res.send(
-			successResponse(200, `Welcome to ${getEnv().APP_NAME}`, {
-				appName: getEnv().APP_NAME,
-				appVersion: getEnv().APP_VERSION,
-				timestamp: DateUtils.now().toISOString(),
-			}),
+			successResponse(
+				200,
+				this.i18n.t("message.app.welcome", {
+					args: { appName: getEnv().APP_NAME },
+				}),
+				{
+					appName: getEnv().APP_NAME,
+					appVersion: getEnv().APP_VERSION,
+					timestamp: DateUtils.now().toISOString(),
+				},
+			),
 		);
 	}
 }
