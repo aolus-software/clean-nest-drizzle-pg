@@ -23,6 +23,7 @@ interface ApiStandardResponsesOptions {
 	unauthorized?: boolean;
 	forbidden?: boolean;
 	validation?: boolean;
+	toManyRequests?: boolean;
 	internalServerError?: boolean;
 	serviceUnavailable?: boolean;
 }
@@ -35,6 +36,7 @@ export const ApiStandardResponses = (
 		unauthorized = true,
 		forbidden = true,
 		validation = true,
+		toManyRequests = true,
 		internalServerError = true,
 		serviceUnavailable = true,
 	} = options;
@@ -173,6 +175,29 @@ export const ApiStandardResponses = (
 						status: { type: "number", example: 503 },
 						success: { type: "boolean", example: false },
 						message: { type: "string", example: "Service Unavailable" },
+						data: { type: "null", example: null },
+					},
+				},
+			}),
+		);
+	}
+
+	if (toManyRequests) {
+		decorators.push(
+			ApiResponse({
+				status: 429,
+				description: "Too Many Requests",
+				schema: {
+					example: {
+						code: 429,
+						success: false,
+						message: "Too Many Requests",
+						data: null,
+					},
+					properties: {
+						status: { type: "number", example: 429 },
+						success: { type: "boolean", example: false },
+						message: { type: "string", example: "Too Many Requests" },
 						data: { type: "null", example: null },
 					},
 				},
