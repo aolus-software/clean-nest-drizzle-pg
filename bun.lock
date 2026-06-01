@@ -57,6 +57,7 @@
         "@types/multer": "^2.1.0",
         "@types/node": "^25.9.1",
         "@types/nodemailer": "^8.0.0",
+        "@types/passport-jwt": "^4.0.1",
         "@types/passport-local": "^1.0.38",
         "@types/pg": "^8.20.0",
         "@types/supertest": "^7.2.0",
@@ -640,6 +641,8 @@
     "@types/nodemailer": ["@types/nodemailer@8.0.0", "https://registry.npmmirror.com/@types/nodemailer/-/nodemailer-8.0.0.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-fyf8jWULsCo0d0BuoQ75i6IeoHs47qcqxWc7yUdUcV0pOZGjUTTOvwdG1PRXUDqN/8A64yQdQdnA2pZgcdi+cA=="],
 
     "@types/passport": ["@types/passport@1.0.17", "", { "dependencies": { "@types/express": "*" } }, "sha512-aciLyx+wDwT2t2/kJGJR2AEeBz0nJU4WuRX04Wu9Dqc5lSUtwu0WERPHYsLhF9PtseiAMPBGNUOtFjxZ56prsg=="],
+
+    "@types/passport-jwt": ["@types/passport-jwt@4.0.1", "https://registry.npmmirror.com/@types/passport-jwt/-/passport-jwt-4.0.1.tgz", { "dependencies": { "@types/jsonwebtoken": "*", "@types/passport-strategy": "*" } }, "sha512-Y0Ykz6nWP4jpxgEUYq8NoVZeCQPo1ZndJLfapI249g1jHChvRfZRO/LS3tqu26YgAS/laI1qx98sYGz0IalRXQ=="],
 
     "@types/passport-local": ["@types/passport-local@1.0.38", "", { "dependencies": { "@types/express": "*", "@types/passport": "*", "@types/passport-strategy": "*" } }, "sha512-nsrW4A963lYE7lNTv9cr5WmiUD1ibYJvWrpE13oxApFsRt77b0RdtZvKbCdNIY4v/QZ6TRQWaDDEwV1kCTmcXg=="],
 
