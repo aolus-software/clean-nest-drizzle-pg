@@ -15,7 +15,7 @@ Every controller class has `@ApiTags("...")`. This project uses flat, slash-grou
 
 ## Response shape
 
-Return the success payload through `ResponseHandler.success(...)` and route every error through `ResponseHandler.handleError(res, error)`. Inject the Fastify reply with `@Res() res: FastifyReply` (needed by `handleError`).
+Always send the response through the injected Fastify reply: `return res.status(<code>).send(ResponseHandler.success(...))`. Route every error through `ResponseHandler.handleError(res, error)`. Inject the reply with `@Res() res: FastifyReply` (required for both `.send()` and `handleError`).
 
 ```ts
 @Post()
@@ -24,16 +24,19 @@ Return the success payload through `ResponseHandler.success(...)` and route ever
 async create(@Body() dto: CreateUserDto, @Res() res: FastifyReply) {
 	try {
 		await this.usersService.create(dto);
-		return ResponseHandler.success<void>(201, "User created successfully", undefined);
+		return res
+			.status(201)
+			.send(ResponseHandler.success<void>(201, "User created successfully", undefined));
 	} catch (error) {
 		return ResponseHandler.handleError(res, error);
 	}
 }
 ```
 
+- Always call `res.status(<code>).send(...)` on the success path — never return the bare `ResponseHandler.success(...)` object. The HTTP status passed to `res.status(...)` must match the `code` argument of `ResponseHandler.success(...)` (201 for create, 200 otherwise).
 - Pass an explicit type param to `ResponseHandler.success<T>` (`<void>` when there is no body data, with `undefined` as the data argument).
 - Never let an exception propagate uncaught from a controller method — always wrap in try/catch and delegate to `handleError`.
-- Do not build raw response objects or call `res.send(...)` yourself for the success path.
+- Build the envelope with `ResponseHandler.success(...)`; do not hand-build raw response objects.
 
 ## Swagger decorators
 

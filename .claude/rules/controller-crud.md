@@ -5,7 +5,7 @@ paths:
 
 # Controller CRUD Rules
 
-A full CRUD controller implements five endpoints. Each wraps its body in try/catch and returns via `ResponseHandler`.
+A full CRUD controller implements five endpoints. Each wraps its body in try/catch and sends the response via `res.status(<code>).send(ResponseHandler.success(...))`, routing errors through `ResponseHandler.handleError(res, error)`.
 
 | Method | Route | Action | Permission |
 |---|---|---|---|
@@ -49,7 +49,9 @@ async findAll(
 			filter: filter || null,
 		};
 		const users = await this.usersService.findAll(query);
-		return ResponseHandler.success(200, "Users retrieved successfully", users);
+		return res
+			.status(200)
+			.send(ResponseHandler.success(200, "Users retrieved successfully", users));
 	} catch (error) {
 		return ResponseHandler.handleError(res, error);
 	}
@@ -68,7 +70,9 @@ Import `defaultSort` and `paginationLength` from `@utils`; `DatatableType`, `Sor
 async findOne(@Param("id") id: string, @Res() res: FastifyReply) {
 	try {
 		const user = await this.usersService.getDetail(id);
-		return ResponseHandler.success(200, "User found successfully", user);
+		return res
+			.status(200)
+			.send(ResponseHandler.success(200, "User found successfully", user));
 	} catch (error) {
 		return ResponseHandler.handleError(res, error);
 	}
@@ -77,7 +81,7 @@ async findOne(@Param("id") id: string, @Res() res: FastifyReply) {
 
 ## Create / Update / Delete
 
-`create` returns `ResponseHandler.success<void>(201, ...)`; `update` and `delete` return status `200`. The service does the existence and uniqueness checks — the controller just calls it and returns the message.
+`create` sends `res.status(201).send(ResponseHandler.success<void>(201, ...))`; `update` and `delete` send status `200`. The HTTP status on `res.status(...)` must match the `ResponseHandler.success(...)` code. The service does the existence and uniqueness checks — the controller just calls it and returns the message.
 
 ```ts
 @Post()
@@ -86,7 +90,9 @@ async findOne(@Param("id") id: string, @Res() res: FastifyReply) {
 async create(@Body() dto: CreateUserDto, @Res() res: FastifyReply) {
 	try {
 		await this.usersService.create(dto);
-		return ResponseHandler.success<void>(201, "User created successfully", undefined);
+		return res
+			.status(201)
+			.send(ResponseHandler.success<void>(201, "User created successfully", undefined));
 	} catch (error) {
 		return ResponseHandler.handleError(res, error);
 	}
