@@ -13,10 +13,9 @@ Rate limiting is **global and always on**. `ThrottlerModule`
 
 ## Configuration
 
-- One throttler: `ttl: seconds(getEnv().THROTTLER_TTL || 60)`,
-  `limit: Number(getEnv().THROTTLER_LIMIT) || 100`.
-- Both values come from envalid validation in `libs/config/src/env/index.ts`, which already defaults
-  them to **60 and 60**. Tune via `THROTTLER_TTL` / `THROTTLER_LIMIT` in `.env` — **never hardcode a
+- One throttler: `ttl: seconds(getEnv().THROTTLER_TTL)`, `limit: getEnv().THROTTLER_LIMIT`.
+- Both values come from envalid validation in `libs/config/src/env/index.ts`, which defaults them to
+  **60 requests / 60 seconds** per client. Tune via `THROTTLER_TTL` / `THROTTLER_LIMIT` in `.env` — **never hardcode a
   limit in code.**
 - Registered once through `CommonModule`, which is imported by `AppModule`. Do not register
   `ThrottlerGuard` again in a feature module, and do not add it to a controller's `@UseGuards(...)`
@@ -27,8 +26,8 @@ Rate limiting is **global and always on**. `ThrottlerModule`
 When a client exceeds the limit, `ThrottlerGuard` throws `ThrottlerException`, an `HttpException`
 with status **429**. `ResponseHandler.handleError` echoes that status in the standard error envelope.
 
-Unlike some sibling projects, `@ApiStandardResponses` here **does** carry a 429 flag, so the status is
-documented by default — see the spelling caveat in `response-codes.md`.
+`@ApiStandardResponses` carries a `tooManyRequests` flag defaulting to `true`, so 429 is documented
+on every endpoint by default. See `response-codes.md`.
 
 ## Per-route overrides
 
@@ -50,17 +49,3 @@ enumerable; if you change their policy it should be a stricter `@Throttle`, neve
 receives bursts from one upstream IP will blow past 60/60s and cause the sender to back off and
 retry. Such a route gets `@SkipThrottle()` (when the upstream already rate-limits itself) or a
 deliberately high `@Throttle(...)` — never the default.
-
-## Known wrinkles
-
-Per `contradiction-halt.md` these are recorded, not silently fixed.
-
-- **`ThrottlerModule` lists itself in its own `exports` array** (`exports: [ThrottlerModule]`). It is
-  inert rather than harmful — the guard is provided via `APP_GUARD`, which is global regardless — but
-  it exports nothing usable. If you need consumers to inject `ThrottlerGuard` or the throttler
-  storage, export those explicitly instead of re-exporting the module.
-- **The `|| 60` and `|| 100` fallbacks are dead code that disagree with the env defaults.** `getEnv()`
-  already guarantees both values (defaulting to 60 and 60), so the `||` branches can only fire if a
-  value is `0` — and if `THROTTLER_LIMIT=0` were ever set deliberately to mean "block everything", it
-  would silently become a limit of **100**. The env layer is the single source of the default; the
-  inline fallbacks should be dropped rather than kept in sync.

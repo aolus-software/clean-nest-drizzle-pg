@@ -12,8 +12,8 @@ import {
 		NodeThrottlerModule.forRoot({
 			throttlers: [
 				{
-					ttl: seconds(getEnv().THROTTLER_TTL || 60),
-					limit: Number(getEnv().THROTTLER_LIMIT) || 100,
+					ttl: seconds(getEnv().THROTTLER_TTL),
+					limit: getEnv().THROTTLER_LIMIT,
 				},
 			],
 		}),
@@ -24,6 +24,5 @@ import {
 			useClass: ThrottlerGuard,
 		},
 	],
-	exports: [ThrottlerModule],
 })
 export class ThrottlerModule {}

@@ -19,6 +19,7 @@ import { DatatableType, PaginationResponse, SortDirection } from "@common";
 import { defaultSort, HashUtils } from "@utils";
 import { db } from "@repositories";
 import {
+	BadRequestException,
 	NotFoundException,
 	UnauthorizedException,
 	UnprocessableEntityException,
@@ -81,6 +82,25 @@ export interface UserInformation {
 	permissions: string[];
 }
 
+/* Sortable columns, keyed by the name the API accepts in ?sort=. Keys are
+   camelCase so the wire contract matches the sibling Prisma template and the
+   shared defaultSort constant; values are the snake_case Drizzle columns they
+   map onto. */
+const userOrderableColumns = {
+	id: users_table.id,
+	name: users_table.name,
+	email: users_table.email,
+	status: users_table.status,
+	createdAt: users_table.created_at,
+	updatedAt: users_table.updated_at,
+};
+
+/* The ?sort= and filter[...] values this repository accepts. Exported so the
+   controller can document them in Swagger from one source of truth rather than
+   restating the list. An unrecognised value is rejected, not ignored. */
+export const userSortableFields = Object.keys(userOrderableColumns);
+export const userFilterableFields = ["status", "name", "email", "role_id"];
+
 export const UserRepository = () => {
 	const dbInstance = db;
 
@@ -115,6 +135,17 @@ export const UserRepository = () => {
 						ilike(users_table.status, `%${search}%`),
 					),
 				);
+			}
+
+			if (filter) {
+				for (const key of Object.keys(filter)) {
+					if (!userFilterableFields.includes(key)) {
+						throw new BadRequestException(
+							I18nContext.current()?.t("message.common.invalid_filter_field") ??
+								"Invalid filter field",
+						);
+					}
+				}
 			}
 
 			let filteredCondition: SQL | undefined = undefined;
@@ -163,23 +194,24 @@ export const UserRepository = () => {
 				filteredCondition ? filteredCondition : undefined,
 			);
 
-			const validateOrderBy = {
-				id: users_table.id,
-				name: users_table.name,
-				email: users_table.email,
-				status: users_table.status,
-				created_at: users_table.created_at,
-				updated_at: users_table.updated_at,
-			};
+			type OrderableKey = keyof typeof userOrderableColumns;
+			const orderableKeys = userSortableFields as OrderableKey[];
 
-			type OrderableKey = keyof typeof validateOrderBy;
-			const normalizedOrderBy: OrderableKey = (
-				Object.keys(validateOrderBy) as OrderableKey[]
-			).includes(orderBy as OrderableKey)
-				? (orderBy as OrderableKey)
-				: "id";
+			if (!orderableKeys.includes(orderBy as OrderableKey)) {
+				throw new BadRequestException(
+					I18nContext.current()?.t("message.common.invalid_sort_field") ??
+						"Invalid sort field",
+				);
+			}
 
-			const orderColumn = validateOrderBy[normalizedOrderBy];
+			if (!(["asc", "desc"] as const).includes(orderDirection)) {
+				throw new BadRequestException(
+					I18nContext.current()?.t("message.common.invalid_sort_direction") ??
+						"Invalid sort direction",
+				);
+			}
+
+			const orderColumn = userOrderableColumns[orderBy as OrderableKey];
 
 			const [data, totalCount] = await Promise.all([
 				database.query.users.findMany({

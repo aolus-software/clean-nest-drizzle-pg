@@ -24,15 +24,11 @@ The decorator accepts **exactly these seven flags**, all defaulting to `true`:
 | `unauthorized` | 401 | Unauthorized |
 | `forbidden` | 403 | Forbidden |
 | `validation` | 422 | Validation error (field payload) |
-| `toManyRequests` | 429 | Too Many Requests |
+| `tooManyRequests` | 429 | Too Many Requests |
 | `internalServerError` | 500 | Internal Server Error |
 | `serviceUnavailable` | 503 | Service Unavailable |
 
-> **The 429 flag is spelled `toManyRequests`, with one `o`.** That is the actual property name in
-> `ApiStandardResponsesOptions`. Passing the correctly-spelled `tooManyRequests` is silently ignored
-> (it is not in the interface), leaving the flag at its `true` default — which happens to be
-> harmless, but means an attempt to *disable* 429 documentation silently fails. Match the existing
-> spelling until it is renamed deliberately across every call site.
+The 429 flag is `tooManyRequests` and matches the Prisma sibling.
 
 There is **no `conflict` (409) flag** — do not pass one, it is silently ignored. 404 is **not** part
 of this decorator; document it separately with `@DefaultApiNotFoundResponse("Entity")`. Pass a flag
@@ -71,14 +67,9 @@ throw new UnprocessableEntityException({
 });
 ```
 
-> **Known divergence — do not copy it.** `CustomValidationPipe`'s `exceptionFactory`
-> (`libs/common/src/pipes/custom-validation/custom-validation.pipe.ts`) currently emits
-> `errors: formattedErrors` (plural). Since `handleError` spreads verbatim, a DTO-level validation
-> failure reaches the client under `errors` while Swagger and every hand-thrown 422 say `error`, so a
-> consumer parsing the documented contract cannot render an `@IsEmail` / `@IsStrongPassword` message
-> against the input that caused it — the message degrades to a form-level banner. The intended key is
-> `error`. Per `contradiction-halt.md` this is reported, not silently changed: raise it before
-> writing code that depends on either spelling.
+Both producers now agree: `CustomValidationPipe`'s `exceptionFactory` emits `error`, matching
+Swagger and every hand-thrown 422. A DTO-level failure and a service-level failure return the
+same shape from the same status code.
 
 ### 409 happens, but cannot be declared through the decorator
 
@@ -99,18 +90,12 @@ rare-to-absent here.
   can throw 403.
 - **`validation: false`** on read-only endpoints that accept no body.
 - **`unauthorized: false`** only on a route outside `AuthGuard` entirely.
-- **`badRequest` on `findAll` is a judgement call here, not an automatic keep.** Unlike sibling
-  projects, the list repositories in this codebase **do not throw** on a bad sort or filter: each
-  `findAll` builds an allow-list map of sortable columns and silently falls back to `id` when the
-  requested sort is not a key, and `FilterValidationPipe` silently drops any `filter[...]` key it
-  does not recognise rather than rejecting it. Keep `badRequest: true` (the default) if anything else
-  on the path can throw 400; do not justify it by citing sort validation that does not exist.
-
-  > **Recorded, not fixed** (`contradiction-halt.md`): silent coercion means a client that misspells
-  > a sort field gets a successful 200 sorted by something else, with no signal that its query was
-  > ignored. Worse, `defaultSort` is `"createdAt"` (camelCase) while the allow-list keys are
-  > snake_case (`created_at`), so the default never matches and every unsorted list falls back to
-  > `id`. Raise this before relying on either behaviour.
+- **`badRequest: false` is never valid on a `findAll`.** Each list repository validates the
+  requested sort field, the sort direction, and every `filter[...]` key against an exported
+  allow-list, and throws `BadRequestException` when one does not match. The allow-lists are
+  `<entity>SortableFields` and `<entity>FilterableFields`, exported from the repository and passed to
+  `@ApiDatatableQueries({ sortFields, filterFields })` on the controller so `/docs` shows exactly the
+  values that are enforced. Keep the two in sync by passing the constants — never restate the list.
 
 ## `@ApiSuccessResponse(status, description, example, exampleProperties?)`
 
@@ -126,4 +111,5 @@ returns no body. The status in `ApiSuccessResponse(code, ...)`, in `res.status(c
 3. Throws `NotFoundException`? → add `@DefaultApiNotFoundResponse("Entity")`.
 4. Accepts a body? → keep `validation` (422), and throw the field map under `error`.
 5. Need 409 in Swagger? → add a raw `@ApiResponse` (no flag exists for it).
-6. Disabling 429? → the flag is `toManyRequests`, one `o`.
+6. A list endpoint? → keep `badRequest` (400) and pass the repository's allow-lists to
+   `@ApiDatatableQueries`.

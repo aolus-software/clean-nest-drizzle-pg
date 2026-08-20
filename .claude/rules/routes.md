@@ -59,11 +59,11 @@ export class UsersController {
 
 ```
 # Root / infrastructure — no auth
-GET    /                                    welcome/health string (AppController, no @ApiTags)
+GET    /                                    welcome/health string — @ApiTags("App")
 GET    /health                              @ApiTags("Health") — terminus composite check
 GET    /health/live                         liveness probe
 
-# Auth (/auth) — no class-level guard; each route is public unless marked
+# Auth (/auth) — @ApiTags("Auth"), no class-level guard; each route is public unless marked
 POST   /auth/login                          PUBLIC
 POST   /auth/register                       PUBLIC
 POST   /auth/resend-verification-email      PUBLIC
@@ -75,7 +75,7 @@ GET    /auth/profile                        @UseGuards(AuthGuard) — own identi
 
 # Settings / Users (/users) — AuthGuard + PermissionGuard + RoleGuard
 POST   /users                               user:create
-POST   /users/:id/resend-verify-email       (authenticated only — see gap below)
+POST   /users/:id/resend-verify-email       user:update
 GET    /users                               user:list
 GET    /users/:id                           user:view
 PATCH  /users/:id                           user:update
@@ -103,26 +103,10 @@ change — that is `documentation.md`.
 
 ## Known gaps in the current map
 
-Per `contradiction-halt.md` these are recorded, not silently fixed. Raise them before building on
-top of any of them.
-
-- `POST /users/:id/resend-verify-email` carries `@ApiStandardResponses()` but **no `@PermissionAuth`
-  and no `@RoleAuth`**, so any authenticated user can trigger a verification email for any user id.
-  Every sibling route on the controller is permission-gated; this one is the odd path out. It most
-  likely wants `@PermissionAuth("user:update")`.
-- `AuthController` has **no `@ApiTags`**, so its eight routes land in Swagger's untagged default
-  group while every other tagged controller is grouped. It wants `@ApiTags("Auth")`.
-- `AppController` (`GET /`) likewise has no `@ApiTags`. It is a single unauthenticated welcome route
-  rather than a domain surface, so this matters less than `AuthController`, but it lands in the same
-  untagged bucket.
-
-## Permission catalog is not seeded in this repo
-
-Unlike the Prisma sibling project, this repo ships **no seeder** — there is no `seed` script and no
-seed files, so the `entity:action` strings referenced by `@PermissionAuth` exist only in code. When
-auditing "is this permission string real?", the answer must come from the route map above and the
-`rbac.schema.ts` tables, not from seed data. Adding a seeder is the fix; until then, a new permission
-string has nothing to validate it against. See `.claude/commands/audit-flow.md`.
+None outstanding. The two gaps recorded in the 2026-08-20 sweep are fixed:
+`POST /users/:id/resend-verify-email` now carries `@PermissionAuth("user:update")` like every sibling
+route, and `AuthController` and `AppController` now carry `@ApiTags("Auth")` and `@ApiTags("App")`.
+See `docs/audit-findings.md`.
 
 ## Swagger tagging
 

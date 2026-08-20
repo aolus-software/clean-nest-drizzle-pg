@@ -26,7 +26,7 @@ make test                # jest (unit, *.spec.ts)
 make test-watch
 bun run test:cov
 bun run test:e2e         # jest --config ./test/jest-e2e.json
-bun run test -- src/settings/users/users.service.spec.ts   # single file
+bun run test -- <path/to/file.spec.ts>   # single file (the repo ships no specs yet)
 
 # Database (drizzle-kit)
 make db-migrate-dev      # drizzle-kit generate + migrate (dev)

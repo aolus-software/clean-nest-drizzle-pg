@@ -30,8 +30,6 @@ help:
 	@echo "  make db-migrate      - Run database migrations (prod)"
 	@echo "  make db-migrate-dev  - Run database migrations (dev)"
 	@echo "  make db-push         - Push the schema straight to the database (dev only)"
-	@echo "  make db-seed         - Run database seeder"
-	@echo "  make db-reset        - Reset database"
 	@echo "  make db-studio       - Start drizzle-kit Studio"
 	@echo "  make deploy-prep     - Prepare the project for deployment (install, migrate, build)"
 	@echo "  make deploy-dev      - Deploy + (re)start pm2 app $(PM2_APP_PREFIX)-dev"
@@ -117,10 +115,6 @@ db-push:
 	@echo "Pushing the schema to the database (development only)..."
 	bunx --bun drizzle-kit push
 
-db-seed:
-	@echo "Running database seeder..."
-	bun run seed
-
 db-studio:
 	@echo "Starting drizzle-kit Studio..."
 	bunx --bun drizzle-kit studio
@@ -199,7 +193,7 @@ pm2-stop-production: check-pm2
 # ===========================
 .PHONY: \
 	help dev start typecheck build lint format test test-watch \
-	db-generate db-check db-migrate db-migrate-dev db-push db-seed db-reset db-studio \
+	db-generate db-check db-migrate db-migrate-dev db-push db-studio \
 	deploy-prep check-pm2 deploy-dev deploy-staging deploy-production \
 	pm2-status pm2-logs-dev pm2-logs-staging pm2-logs-production \
 	pm2-stop-dev pm2-stop-staging pm2-stop-production

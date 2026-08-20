@@ -3,6 +3,8 @@ import { db, DbTransaction } from "@repositories";
 import { and, asc, desc, eq, ilike, or, SQL } from "drizzle-orm";
 import { permissions_table } from "../schema/rbac.schema";
 import { defaultSort } from "@utils";
+import { BadRequestException } from "@nestjs/common";
+import { I18nContext } from "nestjs-i18n";
 
 export interface PermissionList {
 	id: string;
@@ -11,6 +13,24 @@ export interface PermissionList {
 	created_at: Date;
 	updated_at: Date;
 }
+
+/* Sortable columns, keyed by the name the API accepts in ?sort=. Keys are
+   camelCase so the wire contract matches the sibling Prisma template and the
+   shared defaultSort constant; values are the snake_case Drizzle columns they
+   map onto. */
+const permissionOrderableColumns = {
+	id: permissions_table.id,
+	name: permissions_table.name,
+	group: permissions_table.group,
+	createdAt: permissions_table.created_at,
+	updatedAt: permissions_table.updated_at,
+};
+
+/* The ?sort= and filter[...] values this repository accepts. Exported so the
+   controller can document them in Swagger from one source of truth rather than
+   restating the list. An unrecognised value is rejected, not ignored. */
+export const permissionSortableFields = Object.keys(permissionOrderableColumns);
+export const permissionFilterableFields = ["name", "group"];
 
 export const PermissionRepository = () => {
 	const dbInstance = db;
@@ -50,6 +70,17 @@ export const PermissionRepository = () => {
 				);
 			}
 
+			if (filter) {
+				for (const key of Object.keys(filter)) {
+					if (!permissionFilterableFields.includes(key)) {
+						throw new BadRequestException(
+							I18nContext.current()?.t("message.common.invalid_filter_field") ??
+								"Invalid filter field",
+						);
+					}
+				}
+			}
+
 			let filterConditions: SQL | undefined;
 			if (filter) {
 				if (filter.group) {
@@ -72,22 +103,24 @@ export const PermissionRepository = () => {
 				filterConditions,
 			);
 
-			const validateOrderBy = {
-				id: permissions_table.id,
-				name: permissions_table.name,
-				group: permissions_table.group,
-				created_at: permissions_table.created_at,
-				updated_at: permissions_table.updated_at,
-			};
+			type OrderableKey = keyof typeof permissionOrderableColumns;
+			const orderableKeys = permissionSortableFields as OrderableKey[];
 
-			type OrderableKey = keyof typeof validateOrderBy;
-			const normalizedOrderBy: OrderableKey = (
-				Object.keys(validateOrderBy) as OrderableKey[]
-			).includes(orderBy as OrderableKey)
-				? (orderBy as OrderableKey)
-				: "id";
+			if (!orderableKeys.includes(orderBy as OrderableKey)) {
+				throw new BadRequestException(
+					I18nContext.current()?.t("message.common.invalid_sort_field") ??
+						"Invalid sort field",
+				);
+			}
 
-			const orderColumn = validateOrderBy[normalizedOrderBy];
+			if (!(["asc", "desc"] as const).includes(orderDirection)) {
+				throw new BadRequestException(
+					I18nContext.current()?.t("message.common.invalid_sort_direction") ??
+						"Invalid sort direction",
+				);
+			}
+
+			const orderColumn = permissionOrderableColumns[orderBy as OrderableKey];
 
 			const [data, total] = await Promise.all([
 				database.query.permissions.findMany({

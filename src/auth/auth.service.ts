@@ -152,7 +152,7 @@ export class AuthService {
 			await tx.insert(email_verifications_table).values({
 				user_id: newUser[0].id,
 				token: token,
-				expired_at: emailVerificationLifetime,
+				expired_at: emailVerificationLifetime(),
 			});
 
 			await this.mailService.sendMail({
@@ -189,7 +189,7 @@ export class AuthService {
 			await tx.insert(email_verifications_table).values({
 				user_id: user.id,
 				token: token,
-				expired_at: emailVerificationLifetime,
+				expired_at: emailVerificationLifetime(),
 			});
 
 			await this.mailService.sendMail({
@@ -272,7 +272,7 @@ export class AuthService {
 			await tx.insert(password_reset_tokens_table).values({
 				user_id: user.id,
 				token: token,
-				expired_at: resetPasswordLifetime,
+				expired_at: resetPasswordLifetime(),
 			});
 
 			await this.mailService.sendMail({

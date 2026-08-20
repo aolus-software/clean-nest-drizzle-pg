@@ -109,7 +109,7 @@ export class UsersService {
 		await db.insert(email_verifications_table).values({
 			user_id: user.id,
 			token,
-			expired_at: emailVerificationLifetime,
+			expired_at: emailVerificationLifetime(),
 		});
 
 		await this.mailService.sendMail({

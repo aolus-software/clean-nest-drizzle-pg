@@ -23,7 +23,7 @@ interface ApiStandardResponsesOptions {
 	unauthorized?: boolean;
 	forbidden?: boolean;
 	validation?: boolean;
-	toManyRequests?: boolean;
+	tooManyRequests?: boolean;
 	internalServerError?: boolean;
 	serviceUnavailable?: boolean;
 }
@@ -36,7 +36,7 @@ export const ApiStandardResponses = (
 		unauthorized = true,
 		forbidden = true,
 		validation = true,
-		toManyRequests = true,
+		tooManyRequests = true,
 		internalServerError = true,
 		serviceUnavailable = true,
 	} = options;
@@ -182,7 +182,7 @@ export const ApiStandardResponses = (
 		);
 	}
 
-	if (toManyRequests) {
+	if (tooManyRequests) {
 		decorators.push(
 			ApiResponse({
 				status: 429,

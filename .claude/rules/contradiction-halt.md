@@ -46,26 +46,13 @@ This applies whether the contradiction is with:
 These are documented in their rules and awaiting a decision. Do not build on any of them without
 raising it first:
 
-- `CustomValidationPipe` emits the 422 field map as `errors` while Swagger and hand-thrown 422s use
-  `error` — `response-codes.md`.
-- `POST /users/:id/resend-verify-email` is authenticated but not permission-gated, and
-  `AuthController` has no `@ApiTags` — `routes.md`.
-- **`defaultSort` never matches any sort allow-list.** `libs/utils/src/default/sort.ts` exports
-  `defaultSort = "createdAt"` (camelCase), but every `findAll` allow-list keys its sortable columns
-  in snake_case (`created_at`, `updated_at`). The requested sort falls through to the `"id"` fallback,
-  so every unsorted list is ordered by id while the code reads as if it sorts by creation date —
-  `response-codes.md`.
-- **Invalid sort fields and unknown filters are silently ignored**, not rejected: the allow-list falls
-  back to `id` and `FilterValidationPipe` drops unrecognised `filter[...]` keys, so a malformed query
-  returns a successful 200 over the wrong rows — `response-codes.md`.
-- **Token lifetimes are computed once at module load.** `libs/utils/src/default/token-lifetime.ts`
-  evaluates `DateUtils.addHours(DateUtils.now(), 2).toDate()` at import time, so
-  `emailVerificationLifetime` and `resetPasswordLifetime` are frozen at process start rather than
-  computed per token. Every token issued during a long-lived process shares one absolute expiry that
-  drifts further into the past as the process runs. These want to be functions, not constants.
-- **`ThrottlerModule` re-exports itself** and carries `|| 60` / `|| 100` fallbacks that disagree with
-  the envalid defaults — `rate-limiting.md`.
-- **There is no seeder.** `make db-seed` runs `bun run seed`, but no `seed` script and no seed files
-  exist, so the target has never worked and the RBAC permission catalog has no ground truth —
-  `routes.md`. `make db-reset` is likewise advertised in `make help` and `.PHONY` with no target
-  defined.
+- **There is no seeder.** `make db-seed` was removed from the `Makefile` because no `seed` script and
+  no seed files exist, so the RBAC permission catalog has no ground truth: nothing validates the
+  `entity:action` strings that `@PermissionAuth` depends on. Porting the seeder from
+  `clean-nest-prisma-pg` is the fix — `routes.md`.
+- **There are no tests.** The repository contains zero `*.spec.ts` files, so none of the invariants in
+  these rules has a regression test.
+
+Resolved in the 2026-08-20 sweep (see `docs/audit-findings.md`): the 422 `errors`/`error` key, the
+ungated `resend-verify-email` route, the untagged `AuthController`, the `defaultSort` case mismatch,
+silent sort/filter coercion, module-load token lifetimes, and the self-exporting `ThrottlerModule`.

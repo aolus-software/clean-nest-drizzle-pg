@@ -11,7 +11,10 @@
 		"insufficient_permission": "Hak akses tidak mencukupi",
 		"user_not_found": "Pengguna tidak ditemukan",
 		"file_required": "Berkas wajib diunggah",
-		"unsupported_file_type": "Tipe berkas tidak didukung"
+		"unsupported_file_type": "Tipe berkas tidak didukung",
+		"invalid_sort_field": "Kolom pengurutan tidak valid",
+		"invalid_sort_direction": "Arah pengurutan tidak valid",
+		"invalid_filter_field": "Kolom filter tidak valid"
 	},
 	"app": {
 		"welcome": "Selamat datang di {appName}"

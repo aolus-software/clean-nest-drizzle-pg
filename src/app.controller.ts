@@ -1,12 +1,13 @@
 import { successResponse } from "@common/response/response";
 import { Controller, Get, Res } from "@nestjs/common";
-import { ApiOkResponse } from "@nestjs/swagger";
+import { ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { DateUtils } from "@utils";
 import { FastifyReply } from "fastify";
 import { getEnv } from "@config";
 import { I18nService } from "nestjs-i18n";
 
 @Controller()
+@ApiTags("App")
 export class AppController {
 	constructor(private readonly i18n: I18nService) {}
 

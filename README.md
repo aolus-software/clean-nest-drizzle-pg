@@ -187,7 +187,6 @@ Run `make help` to see all available commands:
 | `make db-migrate`        | Run database migrations (prod)                    |
 | `make db-migrate-dev`    | Run database migrations (dev) — generate + migrate |
 | `make db-push`           | Push the schema straight to the database (dev only) |
-| `make db-seed`           | Run database seeder                               |
 | `make db-studio`         | Start drizzle-kit Studio                          |
 | `make deploy-prep`       | Prepare for deployment (install, migrate, build)  |
 | `make deploy-dev`        | Deploy and start/reload the `dev` PM2 app         |

@@ -11,7 +11,10 @@
 		"insufficient_permission": "Insufficient permissions",
 		"user_not_found": "User not found",
 		"file_required": "File is required",
-		"unsupported_file_type": "Unsupported file type"
+		"unsupported_file_type": "Unsupported file type",
+		"invalid_sort_field": "Invalid sort field",
+		"invalid_sort_direction": "Invalid sort direction",
+		"invalid_filter_field": "Invalid filter field"
 	},
 	"app": {
 		"welcome": "Welcome to {appName}"
