@@ -20,7 +20,7 @@ async function bootstrap() {
 	// app global pipes
 	app.useGlobalPipes(new CustomValidationPipe());
 
-	if (getEnv().NODE_ENV !== "production") {
+	if (getEnv().API_DOCS_ENABLED) {
 		const config = swaggerConfig;
 
 		const document = SwaggerModule.createDocument(app, config, {

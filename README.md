@@ -16,7 +16,10 @@ A production-ready **Clean Architecture** boilerplate built with [NestJS](https:
 - **Rate Limiting** - Request throttling with `@nestjs/throttler`
 - **Health Checks** - Readiness and liveness probes via `@nestjs/terminus`
 - **Background Jobs** - BullMQ for async task processing
+- **RBAC** - Roles and permissions gated with `@PermissionAuth("entity:action")` / `@RoleAuth(...)`, resolved per request and cached in Redis
+- **Soft Deletes** - `deleted_at` on user rows; deletes stamp a timestamp and every read filters them out
 - **Docker Ready** - Pre-configured Docker Compose setup
+- **PM2 Deployment** - Per-environment process definitions with one-command deploys
 - **Testing** - Jest setup for unit & e2e tests
 
 ---
@@ -33,6 +36,8 @@ A production-ready **Clean Architecture** boilerplate built with [NestJS](https:
 | **Queue**     | [BullMQ](https://bullmq.io/)                                               |
 | **Auth**      | [Passport.js](http://www.passportjs.org/) + JWT                            |
 | **Docs**      | [Swagger](https://swagger.io/) + [Scalar](https://scalar.com/)             |
+| **Env**       | [envalid](https://github.com/af/envalid) validation via `getEnv()`         |
+| **Process**   | [PM2](https://pm2.keymetrics.io/) (`ecosystem.config.js`)                  |
 
 ---
 
@@ -46,15 +51,24 @@ A production-ready **Clean Architecture** boilerplate built with [NestJS](https:
 │   ├── app.module.ts         # Root application module
 │   └── main.ts               # Application entry point
 ├── libs/
-│   ├── common/               # Shared utilities, guards, pipes, decorators
-│   ├── config/               # App configuration, env validation, CORS/Helmet/Swagger configs
-│   ├── repositories/         # Database schemas, migrations, repositories
-│   └── utils/                # Helper utilities
+│   ├── common/               # @common  - guards, pipes, decorators, mail, cache, ResponseHandler
+│   ├── config/               # @config  - env validation, CORS/Helmet/Swagger configs
+│   ├── repositories/         # @repositories - db singleton, schema, migrations, repositories
+│   └── utils/                # @utils   - hashing, JWT, dates, logging, constants
+├── .agents/skills/           # Agent skill bundle (.claude/skills is a symlink to this)
+├── .claude/
+│   ├── rules/                # Path-scoped coding standards
+│   └── commands/             # /commit, /update-todo
 ├── docker-compose.yml        # Docker services configuration
 ├── drizzle.config.ts         # Drizzle ORM configuration
+├── ecosystem.config.js       # PM2 process definitions per environment
 ├── Makefile                  # Development commands
 └── package.json
 ```
+
+Shared code lives in `libs/` and is imported through the `@common`, `@config`, `@repositories`, and
+`@utils` aliases. Every public export must be re-exported from the lib's `src/index.ts` or the alias
+import will not resolve.
 
 ---
 
@@ -64,6 +78,8 @@ A production-ready **Clean Architecture** boilerplate built with [NestJS](https:
 
 - [Bun](https://bun.sh/) >= 1.0.0 or [Node.js](https://nodejs.org/) >= 18.0.0
 - [Docker](https://www.docker.com/) & [Docker Compose](https://docs.docker.com/compose/)
+- [PM2](https://pm2.keymetrics.io/) — only on deploy targets (`bun add -g pm2`, or run the deploy
+  commands with `PM2='bunx pm2'`)
 
 ### Installation
 
@@ -93,6 +109,8 @@ A production-ready **Clean Architecture** boilerplate built with [NestJS](https:
    APP_VERSION="1.0.0"
    APP_SECRET=your_secret_key_here
    APP_PORT=8002
+
+   API_DOCS_ENABLED=true
 
    DATABASE_URL=postgresql://postgres:postgres@localhost:5432/app_db
 
@@ -153,20 +171,31 @@ A production-ready **Clean Architecture** boilerplate built with [NestJS](https:
 
 Run `make help` to see all available commands:
 
-| Command               | Description                               |
-| --------------------- | ----------------------------------------- |
-| `make dev`            | Start the development server              |
-| `make build`          | Build the project                         |
-| `make lint`           | Lint the project                          |
-| `make format`         | Format the project                        |
-| `make test`           | Run tests                                 |
-| `make test-watch`     | Run tests in watch mode                   |
-| `make db-migrate`     | Run database migrations (prod)            |
-| `make db-migrate-dev` | Run database migrations (dev)             |
-| `make db-seed`        | Run database seeder                       |
-| `make db-reset`       | Reset database                            |
-| `make db-studio`      | Start drizzle-kit Studio                  |
-| `make deploy-prep`    | Prepare the project for deployment        |
+| Command                  | Description                                       |
+| ------------------------ | ------------------------------------------------- |
+| `make help`              | Display available commands                        |
+| `make dev`               | Start the development server                      |
+| `make start`             | Start the project                                 |
+| `make typecheck`         | Run type checks                                   |
+| `make build`             | Build the project                                 |
+| `make lint`              | Lint the project                                  |
+| `make format`            | Format the project                                |
+| `make test`              | Run tests                                         |
+| `make test-watch`        | Run tests in watch mode                           |
+| `make db-generate`       | Generate migration SQL from the schema            |
+| `make db-check`          | Check the migration folder for collisions         |
+| `make db-migrate`        | Run database migrations (prod)                    |
+| `make db-migrate-dev`    | Run database migrations (dev) — generate + migrate |
+| `make db-push`           | Push the schema straight to the database (dev only) |
+| `make db-seed`           | Run database seeder                               |
+| `make db-studio`         | Start drizzle-kit Studio                          |
+| `make deploy-prep`       | Prepare for deployment (install, migrate, build)  |
+| `make deploy-dev`        | Deploy and start/reload the `dev` PM2 app         |
+| `make deploy-staging`    | Deploy and start/reload the `staging` PM2 app     |
+| `make deploy-production` | Deploy and start/reload the `production` PM2 app  |
+| `make pm2-status`        | List PM2 processes                                |
+| `make pm2-logs-<env>`    | Tail logs for `dev`, `staging`, or `production`   |
+| `make pm2-stop-<env>`    | Stop `dev`, `staging`, or `production`            |
 
 ---
 
@@ -179,6 +208,7 @@ Run `make help` to see all available commands:
 | `bun run build`      | Build for production                  |
 | `bun run lint`       | Lint and fix code                     |
 | `bun run format`     | Format code with Prettier             |
+| `bun run typecheck`  | Run TypeScript type checks            |
 | `bun run test`       | Run unit tests                        |
 | `bun run test:e2e`   | Run end-to-end tests                  |
 | `bun run test:cov`   | Run tests with coverage               |
@@ -215,6 +245,9 @@ Once the application is running, access the interactive API documentation at:
 
 The documentation includes all available endpoints, request/response schemas, and authentication setup.
 
+`/docs` is mounted only when `API_DOCS_ENABLED=true`. The variable defaults to `false`, so a
+deployment that does not set it serves no documentation route at all.
+
 ---
 
 ## Database Management
@@ -222,15 +255,25 @@ The documentation includes all available endpoints, request/response schemas, an
 This project uses Drizzle ORM with Drizzle Kit for migrations.
 
 ```bash
-# Generate migrations
+# Generate migration SQL after editing libs/repositories/src/schema/
 bunx --bun drizzle-kit generate
 
-# Run migrations
+# Apply pending migrations
 bunx --bun drizzle-kit migrate
+
+# Check the migration folder for collisions
+bunx --bun drizzle-kit check
+
+# Push the schema straight to the database, skipping migration files (dev only)
+bunx --bun drizzle-kit push
 
 # Open Drizzle Studio
 make db-studio
 ```
+
+The schema lives in `libs/repositories/src/schema/` and generated migrations land in
+`libs/repositories/src/migrations/` (both configured in `drizzle.config.ts`). After editing the
+schema, run `make db-migrate-dev` to generate and apply the migration in one step.
 
 ---
 
@@ -254,19 +297,53 @@ bun run test:e2e
 
 ## Deployment
 
-Prepare for production:
+Deployments are managed with [PM2](https://pm2.keymetrics.io/) using `ecosystem.config.js`, which
+defines one app per environment:
+
+| App name                           | Mode             | NODE_ENV     | Memory restart |
+| ---------------------------------- | ---------------- | ------------ | -------------- |
+| `clean-nest-drizzle-pg-dev`        | fork, 1 instance | `dev`        | 2G             |
+| `clean-nest-drizzle-pg-staging`    | fork, 1 instance | `staging`    | 2G             |
+| `clean-nest-drizzle-pg-production` | cluster, `max`   | `production` | 4G             |
+
+Deploy with a single command per environment:
 
 ```bash
-make deploy-prep
+make deploy-dev
+make deploy-staging
+make deploy-production
 ```
 
-This will install dependencies with frozen lockfile, run database migrations, and build the production bundle.
+Each target runs the full sequence — `bun install --frozen-lockfile`, `drizzle-kit migrate`,
+`bun run build` — then **reloads** the PM2 app if it is already running (zero-downtime in cluster
+mode) or starts it from the ecosystem file if not, and finally `pm2 save`.
 
-Start in production:
+Managing running processes:
 
 ```bash
-bun run start:prod
+make pm2-status            # pm2 list
+make pm2-logs-dev          # also pm2-logs-staging / pm2-logs-production
+make pm2-stop-dev          # also pm2-stop-staging / pm2-stop-production
 ```
+
+**Notes**
+
+- `pm2` must be on your `PATH`. If it is not installed globally, pass it in:
+  `make deploy-dev PM2='bunx pm2'`.
+- Per-environment configuration comes from the `.env` file in the deploy directory
+  (`env_file: ".env"`). The ecosystem file sets only `NODE_ENV`.
+- Adding a new environment means adding it to **both** `ecosystem.config.js` and the `NODE_ENV`
+  choices in `libs/config/src/env/index.ts` — envalid rejects an unknown value and the process exits
+  at boot.
+- Logs are written to `logs/<env>-out.log` and `logs/<env>-error.log`. The directory is created by
+  the deploy target and is gitignored.
+- To rename the apps, change `PM2_APP_PREFIX` in the `Makefile` and the `name` fields in
+  `ecosystem.config.js` together.
+- Cluster mode is safe because nothing here runs on a timer. If you add scheduled work, it will run
+  once per instance unless you guard it with a lock.
+
+Without PM2, `make deploy-prep` still performs the install, migrate, and build steps, and
+`bun run start:prod` starts the built bundle directly.
 
 ---
 
@@ -280,7 +357,8 @@ bun run start:prod
 | `APP_PORT`               | Server port                        | `8002`                       |
 | `APP_URL`                | Application URL                    | `localhost:8002`             |
 | `APP_TIMEZONE`           | Application timezone               | `UTC`                        |
-| `NODE_ENV`               | Environment                        | `development`                |
+| `NODE_ENV`               | `development` \| `dev` \| `staging` \| `production` \| `test` | `development` |
+| `API_DOCS_ENABLED`       | Mount the Scalar API reference at `/docs` | `false`         |
 | `FRONTEND_URL`           | Frontend application URL           | `http://localhost:3000`      |
 | `DATABASE_URL`           | PostgreSQL connection string       | -                            |
 | `JWT_SECRET`             | JWT signing secret                 | -                            |
@@ -305,6 +383,53 @@ bun run start:prod
 | `MAIL_PASSWORD`          | SMTP password                      | -                            |
 | `MAIL_FROM`              | Default sender email               | -                            |
 | `MAIL_DEFAULT_SUBJECT`   | Default email subject              | `Clean Nest`                 |
+
+All environment variables are validated by envalid in `libs/config/src/env/index.ts` and read through
+`getEnv()`. Never read `process.env` directly — a variable that is not declared there is not
+available to the app, and a missing or invalid required variable exits the process at boot rather
+than failing later.
+
+The `dev` and `staging` values of `NODE_ENV` exist for the deployed PM2 apps (see
+[Deployment](#deployment)).
+
+`API_DOCS_ENABLED` is the single switch for the `/docs` API reference and is independent of
+`NODE_ENV` — set it to `true` on any environment where the schema should be browsable, and leave it
+unset or `false` everywhere else. It defaults to `false` so an environment that never sets it cannot
+expose the schema by accident; `.env.example` turns it on for local development.
+
+---
+
+## Conventions and AI Agent Rules
+
+Architecture notes and coding standards live alongside the code so both humans and AI coding agents
+work from the same source of truth:
+
+- **`CLAUDE.md`** — project overview, commands, architecture, and the non-obvious behaviours worth
+  knowing before making a change.
+- **`.claude/rules/`** — path-scoped standards applied per file type: `controller.md`, `service.md`,
+  `repository.md`, `dto.md`, `module.md`, `schema.md`, `i18n.md`, `response-codes.md`, `routes.md`,
+  `rate-limiting.md`, `clean-code.md`, `shared-code.md`, and more. Two apply to every change:
+  `contradiction-halt.md` (report contradictions instead of silently implementing them) and
+  `documentation.md` (a doc your change makes wrong is fixed in the same change).
+- **`.claude/commands/`** — `/commit` (Conventional Commit workflow), `/update-todo`, and
+  `/audit-flow` (read-only whole-codebase audit that writes explained findings to
+  `docs/audit-findings.md` and never modifies code).
+- **`.claude/skills/`** — a symlink to `.agents/skills/`, the general engineering skill bundle
+  managed through `skills-lock.json`. See that directory's `README.md` for the installed set.
+
+Core conventions at a glance:
+
+- Request flow is **Controller → Service → Repository**. Controllers handle HTTP only, services own
+  business logic and transactions, repositories run Drizzle queries.
+- Repositories are **factory functions**, not classes: `UserRepository().findByEmail(email)`. Each
+  method takes an optional trailing `tx?: DbTransaction` to join a service-owned transaction.
+- Transactions live in the service: `await db.transaction(async (tx) => { ... })`.
+- Responses go through `ResponseHandler` and are sent via `res.status(code).send(...)`.
+- Permission strings are `entity:action` with a singular entity (`user:create`).
+- Use `PATCH`, not `PUT`, for updates.
+- Every user-facing string resolves through i18n, with the key present in both `en` and `id`.
+- Uniqueness and business-rule failures are **422**, not 409, keyed `error` (singular).
+- Style is tabs, double quotes, semicolons; no `any` except `catch (err: unknown)`.
 
 ---
 
