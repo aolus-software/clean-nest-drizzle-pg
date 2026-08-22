@@ -460,8 +460,8 @@ work from the same source of truth:
 - **`.claude/commands/`** — `/commit` (Conventional Commit workflow), `/update-todo`, and
   `/audit-flow` (read-only whole-codebase audit that writes explained findings to
   `docs/audit-findings.md` and never modifies code).
-- **`.claude/skills/`** — a symlink to `.agents/skills/`, the general engineering skill bundle
-  managed through `skills-lock.json`. See that directory's `README.md` for the installed set.
+- **`.claude/skills/`** — a symlink to `.agents/skills/`, the vendored general engineering skill
+  bundle. See that directory's `README.md` for the installed set.
 
 Core conventions at a glance:
 

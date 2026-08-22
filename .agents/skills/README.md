@@ -6,15 +6,21 @@ Engineering skills available to Claude Code in this repo.
 visible to any agent that reads either path. Do not replace the symlink with a real directory — the
 two would drift.
 
-Most skills here are installed from upstream repositories by the [`skills`](https://github.com/vercel-labs/skills)
-CLI and recorded in `skills-lock.json` at the repo root:
+Skills here are **vendored** — the files in this directory are the source of truth. There is no
+provenance lock: `skills-lock.json` is not tracked (it is in `.gitignore`), so `bunx skills update`
+and `bunx skills experimental_install` have nothing to resolve against and are not part of this
+repo's workflow.
+
+The [`skills`](https://github.com/vercel-labs/skills) CLI can still fetch a new skill into the
+bundle, but what lands here is then maintained by hand:
 
 ```bash
 bunx skills list                    # show what is installed
-bunx skills add <owner>/<repo>      # install a skill package
-bunx skills update                  # pull upstream changes
-bunx skills experimental_install    # restore everything from skills-lock.json
+bunx skills add <owner>/<repo>      # fetch a skill package into the bundle
 ```
+
+> Because nothing records each skill's upstream source or content hash, **drift is only detectable by
+> manual diff.** If you suspect a skill is out of date, compare it against upstream directly.
 
 ## Installed skills
 
@@ -57,7 +63,8 @@ code; reach for a skill for the technique.
 
 ## Adding a skill
 
-Prefer installing from upstream so `skills-lock.json` can restore it:
+Fetch it from upstream where one exists, then commit the result — the vendored copy is what the repo
+keeps:
 
 ```bash
 bunx skills add <owner>/<repo> -s <skill-name>
@@ -77,6 +84,5 @@ description: <one line — when this skill should trigger>
 ```
 
 > **Note:** `caveman`, `clean-code`, `handoff`, `postgres`, `postgresql-optimization`, and
-> `typescript-pro` were vendored in by hand rather than installed through the CLI, so they have no
-> `skills-lock.json` entry and `bunx skills update` will not touch them. Re-add them through
-> `bunx skills add` once the upstream source for each is confirmed.
+> `typescript-pro` were vendored in by hand rather than fetched through the CLI, so no upstream source
+> is recorded for them anywhere. That is now true of the whole bundle — see the note at the top.

@@ -102,6 +102,6 @@ Highlights:
 
 ## Skills, rules, and commands
 
-- `.claude/skills/` is a symlink to `.agents/skills/` (managed via `skills-lock.json`). It bundles general engineering skills — workflow (TDD, systematic debugging, writing/executing plans, code review, handoff) and craft (NestJS best practices, clean code, advanced TypeScript, PostgreSQL). See that directory's `README.md` for the full set and how to add one.
+- `.claude/skills/` is a symlink to `.agents/skills/` (vendored — no provenance lock). It bundles general engineering skills — workflow (TDD, systematic debugging, writing/executing plans, code review, handoff) and craft (NestJS best practices, clean code, advanced TypeScript, PostgreSQL). See that directory's `README.md` for the full set and how to add one.
 - `.claude/rules/` — path-scoped coding standards for this codebase. [`.claude/rules/README.md`](.claude/rules/README.md) indexes all 20 with their scope; `contradiction-halt.md` and `documentation.md` apply to every change.
 - `.claude/commands/` — `/commit` (conventional commit workflow), `/update-todo`, and `/audit-flow` (read-only whole-codebase sweep that writes explained findings to `docs/audit-findings.md` and never fixes anything; its writing contract is `.claude/rules/audit-findings.md`).
