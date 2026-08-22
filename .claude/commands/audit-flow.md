@@ -93,8 +93,8 @@ reached** rather than letting silence imply they were clean.
    `@PermissionAuth` string that no code path can satisfy, `@RoleAuth` declared but not enforced
    because `RoleGuard` is missing from `@UseGuards`, guard ordering, role-vs-permission confusion,
    and any authenticated route that can act on a user id other than the caller's without a check.
-   **This repo has no seeder**, so there is no seeded catalog to diff permission strings against —
-   say so rather than implying the strings were validated.
+   Diff every `@PermissionAuth` string against the catalog `libs/repositories/src/seed/permission.seed.ts`
+   produces — a guard naming a permission the seeder does not emit fails **closed**, which is silent.
 3. **Ownership & self-service boundaries** — `PATCH /users/:id/password`, `PATCH /users/:id/status`,
    and `POST /users/:id/resend-verify-email` all take an arbitrary id. Confirm each either requires
    an elevated permission or asserts the target is the caller. A privilege-escalation path (a user
@@ -148,9 +148,8 @@ reached** rather than letting silence imply they were clean.
     with no rule is itself a 📄 finding (`.claude/rules/documentation.md`).
     **Known today:** `CLAUDE.md` documents running
     `bun run test -- src/settings/users/users.service.spec.ts`, but the repo contains **zero**
-    `*.spec.ts` files; and `make db-seed` / `make db-reset` are advertised in `make help` while no
-    `seed` script, no seed files, and no `db-reset` target exist. Confirm and record rather than
-    assuming these were already reported.
+    `*.spec.ts` files; and `make db-reset` is referenced in places while no `db-reset` target
+    exists. Confirm and record rather than assuming these were already reported.
 
 ## Rules for this command
 
@@ -164,6 +163,6 @@ reached** rather than letting silence imply they were clean.
 - **Cite `file:line` for every finding.** No finding without a location.
 - **Explain, don't just point.** A finding a reader must open the code to understand has not been
   written yet.
-- **Invariants already on record** in `.claude/rules/contradiction-halt.md` (the missing seeder, the
-  absent tests) are still swept and still written up — a rule noting an invariant is not a substitute
-  for the report carrying a breach of it with evidence.
+- **Invariants already on record** in `.claude/rules/contradiction-halt.md` (the seeder as permission
+  ground truth, the absent tests) are still swept and still written up — a rule noting an invariant is
+  not a substitute for the report carrying a breach of it with evidence.

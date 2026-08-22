@@ -46,9 +46,11 @@ This applies whether the contradiction is with:
 Confirmed facts about this repository as it stands. Do not build on any of them without raising it
 first:
 
-- **There is no seeder.** There is no `seed` script, no seed files, and no `make db-seed` target, so
-  the RBAC permission catalog has no ground truth: nothing validates the `entity:action` strings that
-  `@PermissionAuth` depends on, and a typo'd one fails closed. Adding a seeder is the fix —
-  `routes.md`.
+- **The seeder is the permission catalog's ground truth.** `libs/repositories/src/seed/` (run via
+  `make db-seed`) is what produces the `entity:action` rows `@PermissionAuth` resolves against. A
+  guard naming a permission the seeder does not produce fails **closed** — the route returns 403 for
+  every non-superuser and nothing logs a warning — so a new guard string is added to
+  `permission.seed.ts` in the same change as the route, not after. Grep the seeder before trusting a
+  guard string.
 - **There are no tests.** The repository contains zero `*.spec.ts` files, so none of the invariants in
   these rules has a regression test.

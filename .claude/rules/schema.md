@@ -35,3 +35,11 @@ After adding a table or relation, register **both** in the `schema` object in `l
 ## Migrations
 
 Schema is the source of truth. After any change run `make db-migrate-dev` (drizzle-kit generate + migrate). Never hand-edit generated migration files under `libs/repositories/src/migrations/`.
+
+## Seeding
+
+Seed data lives in `libs/repositories/src/seed/` and runs via `make db-seed` (`bun run seed`). It is the only code under `libs/` that is an entry point rather than library code, which is why it loads `dotenv`, calls `process.exit`, and is not exported from the `@repositories` barrel.
+
+Every seeder must stay **re-runnable**: insert against a unique or composite primary key and add `.onConflictDoNothing()`, or check for the row first. Never write a seeder that updates an existing row — `user.seed.ts` skips accounts that already exist so a re-run cannot overwrite a password an operator has changed.
+
+`permission.seed.ts` is the ground truth for the `entity:action` strings `@PermissionAuth` resolves against. A guard naming a permission it does not produce fails **closed**, so add the permission there in the same change as the route.

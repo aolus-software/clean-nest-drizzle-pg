@@ -155,13 +155,23 @@ import will not resolve.
    make db-migrate-dev
    ```
 
-6. **Start the development server**
+6. **Seed the database**
+
+   ```bash
+   make db-seed
+   ```
+
+   Creates the `entity:action` permission catalogue, the `superuser` / `admin` / `user` roles, and one
+   pre-verified account per role (`<role>@example.com`, password `S3crEtP4ssw0rd!` — change these
+   before any deployment). Re-runnable: it never overwrites an account that already exists.
+
+7. **Start the development server**
 
    ```bash
    make dev
    ```
 
-7. **Access the application**
+8. **Access the application**
    - API: http://localhost:8001
    - API Documentation: http://localhost:8001/docs
 
@@ -188,6 +198,7 @@ Run `make help` to see all available commands:
 | `make db-migrate-dev`    | Run database migrations (dev) — generate + migrate |
 | `make db-push`           | Push the schema straight to the database (dev only) |
 | `make db-studio`         | Start drizzle-kit Studio                          |
+| `make db-seed`           | Seed permissions, roles, and baseline users       |
 | `make deploy-prep`       | Prepare for deployment (install, migrate, build)  |
 | `make deploy-dev`        | Deploy and start/reload the `dev` PM2 app         |
 | `make deploy-staging`    | Deploy and start/reload the `staging` PM2 app     |
@@ -211,6 +222,7 @@ Run `make help` to see all available commands:
 | `bun run test`       | Run unit tests                        |
 | `bun run test:e2e`   | Run end-to-end tests                  |
 | `bun run test:cov`   | Run tests with coverage               |
+| `bun run seed`       | Seed the database (re-runnable)        |
 
 ---
 

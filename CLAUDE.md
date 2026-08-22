@@ -34,6 +34,7 @@ make db-migrate          # drizzle-kit migrate (prod)
 make db-generate         # drizzle-kit generate (migration SQL from schema changes)
 make db-check            # drizzle-kit check (migration folder collisions)
 make db-push             # drizzle-kit push (skip migration files; dev only)
+make db-seed             # bun run seed (permissions, roles, baseline users)
 bunx --bun drizzle-kit studio     # GUI (make db-studio)
 
 # Deployment (PM2)
@@ -50,6 +51,8 @@ Deploys are driven by `ecosystem.config.js`, which defines one PM2 app per envir
 `NODE_ENV` is set per app to `dev` / `staging` / `production` — all three are in the envalid `choices` list. Adding an environment means adding it to **both** `ecosystem.config.js` and `getEnv()`, or the process exits at boot. The `/docs` UI is gated by `API_DOCS_ENABLED`, not by `NODE_ENV`.
 
 After editing anything under `libs/repositories/src/schema/`, run `make db-migrate-dev` to regenerate and apply the migration.
+
+Seed data lives in `libs/repositories/src/seed/` — beside the schema and migrations it depends on — and runs via `make db-seed`. It is re-runnable: every insert relies on a unique or composite primary key and conflicts are ignored, and existing users are skipped rather than rewritten. It seeds the `entity:action` permission catalogue that `@PermissionAuth` strings are checked against — a guard naming a permission the seeder does not produce fails **closed**, so add the permission there in the same change as the route. The seed files are the one place in `libs/` that loads `dotenv` and calls `process.exit`, because they are an entry point rather than library code; they are deliberately **not** exported from `@repositories`.
 
 ## Architecture
 
