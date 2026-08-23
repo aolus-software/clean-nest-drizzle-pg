@@ -1560,3 +1560,56 @@ instance the earlier sweep did not reach.
   both Elysia siblings.
 - **`HashUtils` is correct.** bcrypt with a cost of 10 — defensible today; 12 would be the current
   default if it is ever revisited, but this is not a finding.
+
+## §P11 DTO validation failures return a different envelope from every other error — 🟠 inconsistency — CONFIRMED
+
+> Found while writing `docs/API_DOCUMENTATION.md` (item 12b) — the guide could not describe "the
+> error envelope" truthfully, because there are two.
+
+**Where:** `libs/common/src/pipes/custom-validation/custom-validation.pipe.ts:26-41`,
+`libs/common/src/response/response.ts:15-22` (`ErrorResponse`), and the `try/catch` in every
+controller method
+
+**What this is.** The house envelope is built by `ResponseHandler`: `{ code, success, message, data }`,
+with `errors` under the key `error` for field-mapped failures. Controllers call
+`ResponseHandler.handleError(res, error)` from a `catch` block, which is what applies it.
+
+**Why this can happen.** A global `ValidationPipe` runs **before** the controller method is entered,
+so an exception it throws never reaches that `try/catch` — Nest's default exception filter serialises
+the payload verbatim instead. The pipe's `exceptionFactory` builds
+`{ statusCode: 422, message, data: null, error }`, which is close to the house shape but not it: the
+key is `statusCode`, not `code`, and there is **no `success` field at all**.
+
+The pipe's own block comment asserts the opposite — "emits the project's 422 envelope, which
+ResponseHandler already understands" — which is how this survived: the intent is stated, and the
+mechanism that would carry it out is bypassed.
+
+**What it costs.** A client that branches on `success` gets `undefined` for every DTO validation
+failure — the single most common error an API returns — and one that reads `code` gets `undefined`
+too. Both work correctly for every other status, including 422s thrown by a service.
+
+**Verified by running it.** Two 422s from the same server:
+
+```jsonc
+// DTO validation (pipe, bypasses ResponseHandler)
+{ "statusCode": 422, "message": "property password_confirmation should not exist",
+  "data": null, "error": { ... } }
+
+// business rule (service -> handleError)
+{ "code": 422, "success": false, "message": "Invalid email or password",
+  "data": null, "error": { ... } }
+```
+
+**What we should do.** Make the pipe's factory emit `code` and `success` so both paths agree — a
+three-line change in `exceptionFactory`, and it is the safer direction because the house envelope is
+what every other response already uses. Alternatively register a global exception filter that applies
+`ResponseHandler` to everything, which fixes this class of problem rather than this instance, but is
+a larger change with more surface. Either way, correct the pipe's comment: it currently documents
+behaviour the code does not have. Under an hour.
+
+**Every allow-listed filter key is implemented.** Checked mechanically — each list repository's
+exported `<entity>FilterableFields` array against the keys its `where` builder actually reads:
+`user` (`status`, `name`, `email`, `role_id`), `role` (`name`), and `permission` (`name`, `group`)
+all match exactly. The sibling `clean-nest-prisma-pg` fails this check on its permission endpoint
+(its §P12), where three allow-listed keys have no branch and silently return an unfiltered page.
+Worth re-running this diff whenever a filter key is added.

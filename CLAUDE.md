@@ -100,6 +100,19 @@ Highlights:
 - **Rate limiting is global and always on** — `ThrottlerGuard` is an `APP_GUARD`, so every route can return 429. Never re-register it per module. See `.claude/rules/rate-limiting.md`.
 - **Routes are flat** — no `setGlobalPrefix`, no versioning; access is enforced by guards and `@PermissionAuth`/`@RoleAuth`, never by the path prefix. The live route map is `.claude/rules/routes.md`, updated in the same change as the route.
 
+## Deeper documentation
+
+Topic guides live in [`docs/`](./docs/README.md) — written for someone consuming or operating the
+service, where `.claude/rules/` is written for someone changing it:
+
+- [`docs/CONFIGURATION.md`](./docs/CONFIGURATION.md) — every env var, its default, and what reads it
+- [`docs/API_DOCUMENTATION.md`](./docs/API_DOCUMENTATION.md) — response envelope, auth, route map, list-query parameters
+- [`docs/ERROR_HANDLING.md`](./docs/ERROR_HANDLING.md) — exception-to-status mapping and the two error shapes
+- [`docs/SECURITY.md`](./docs/SECURITY.md) — authentication, RBAC, rate limiting, CORS and headers, tokens
+- [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md) — the PM2 model and the deploy targets
+- [`docs/SHARED_LIBRARIES.md`](./docs/SHARED_LIBRARIES.md) — what belongs in each `libs/` alias
+- [`docs/audit-findings.md`](./docs/audit-findings.md) — audit findings, resolved and open
+
 ## Skills, rules, and commands
 
 - `.claude/skills/` is a symlink to `.agents/skills/` (vendored — no provenance lock). It bundles general engineering skills — workflow (TDD, systematic debugging, writing/executing plans, code review, handoff) and craft (NestJS best practices, clean code, advanced TypeScript, PostgreSQL). See that directory's `README.md` for the full set and how to add one.
