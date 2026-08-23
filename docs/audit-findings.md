@@ -408,6 +408,30 @@ cross-checked against the sibling `clean-nest-prisma-pg`, that is stated in the 
 **Section numbers use an `R` prefix** (`§R1`–`§R6`) so they never collide with the `§1`–`§12` sweep
 above, whose findings are all resolved.
 
+> ## ✅ All 20 findings above were approved and fixed on 2026-08-23
+>
+> The sweep itself wrote no code. Fixes were a separate, explicitly approved step, per
+> `.claude/rules/audit-findings.md` → "Audits do not fix things". Original finding text is kept
+> unedited below — the next auditor needs to see the pattern that was wrong, not just that it went
+> away.
+>
+> **Everything was verified against a running instance**, not by re-reading. The stack was brought
+> up, migrated and seeded, and each finding was reproduced before the fix and re-checked after. That
+> is how §R4.4 moved from SUSPECT to CONFIRMED, and how two defects that were not in this report at
+> all were found — see §R2.5 and §R2.6, appended below.
+>
+> **Decisions taken with the owner**, since three findings were trade-offs rather than plain bugs:
+> the enumeration leak is closed everywhere (§R1.3, §R1.4) at the cost of the more helpful login
+> message; `@PermissionAuth` is conjunctive (§R2.2); and all three guards were promoted to
+> `APP_GUARD` with a new `@Public()` decorator (§R2.1, §R2.4), which required making `AuthGuard`
+> global too — a naive promotion returns 403 instead of 401 for unauthenticated requests, because
+> global guards run before controller-scoped ones.
+>
+> **Sequencing that mattered:** §R3.1 was fixed *with* §R2.3, never before it. Correcting the cache
+> TTL alone would have widened the stale-authorization window from ~3.6 seconds to a full hour.
+
+
+
 ## Coverage
 
 **Reached and read:**
@@ -461,7 +485,7 @@ Ordered security → data integrity → correctness → hygiene.
 
 ## §R1 Authentication and token flows
 
-### §R1.1 Email verification accepts only tokens that have already been used — 🔴 bug — CONFIRMED
+### §R1.1 Email verification accepts only tokens that have already been used — 🔴 bug — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `src/auth/auth.service.ts:207-213` (the lookup), `:238-252` (the write),
 `src/auth/auth.service.ts:51-58` (the login check that depends on it)
@@ -503,7 +527,7 @@ since nothing here has a regression test. The sibling `clean-nest-prisma-pg` get
 queries on `token` alone and checks `usedAt` in code (`src/auth/auth.service.ts:184-198`) — so the
 Prisma version is the reference for intent.
 
-### §R1.2 Password reset can never succeed — the query and the guard that follows it are mutually exclusive — 🔴 bug — CONFIRMED
+### §R1.2 Password reset can never succeed — the query and the guard that follows it are mutually exclusive — 🔴 bug — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `src/auth/auth.service.ts:318-341` (`resetPassword`), `:293-306`
 (`isResetPasswordTokenValid`)
@@ -544,7 +568,7 @@ flow revokes the user's *other* outstanding reset tokens on success, so several 
 at once. Both Elysia siblings spend every outstanding token for the user on consumption; this repo
 spends only the one presented.
 
-### §R1.3 Login reveals whether an address is registered, and its account state, before checking the password — 🟠 latent risk — CONFIRMED
+### §R1.3 Login reveals whether an address is registered, and its account state, before checking the password — 🟠 latent risk — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `src/auth/auth.service.ts:41-80`
 
@@ -567,7 +591,7 @@ three and surface the real reason only after the password matches. This is a del
 product trade-off — telling a legitimate user "verify your email" is genuinely more helpful — so it
 wants a decision, not a silent change. The same ordering exists in `clean-nest-prisma-pg`.
 
-### §R1.4 The "silent" endpoints are only silent for addresses that do not exist — 🟠 latent risk — CONFIRMED
+### §R1.4 The "silent" endpoints are only silent for addresses that do not exist — 🟠 latent risk — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `src/auth/auth.service.ts:173-185` (`resendVerificationEmail`), `:255-268`
 (`forgotPassword`)
@@ -594,7 +618,7 @@ with §R1.3, since they are the same question.
 
 ## §R2 Access control
 
-### §R2.1 Any authenticated user can create, edit, and delete permissions — 🔴 bug — CONFIRMED
+### §R2.1 Any authenticated user can create, edit, and delete permissions — 🔴 bug — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `src/settings/permissions/permissions.controller.ts:39-43` (the class decorators),
 `libs/common/src/guards/role/role.guard.ts:16-24` (the metadata read),
@@ -650,7 +674,7 @@ the only one today. **The identical defect is present in `clean-nest-prisma-pg`*
 lines; fix both together. Under an hour, but it needs a request against a running server to confirm,
 not a re-read — the whole point is that this one looks correct on the page.
 
-### §R2.2 A route requiring two permissions is satisfied by holding either one — 🟠 latent risk — CONFIRMED
+### §R2.2 A route requiring two permissions is satisfied by holding either one — 🟠 latent risk — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `libs/common/src/guards/permission/permission.guard.ts:39-41`
 
@@ -681,7 +705,7 @@ permission. Whichever is chosen, state it in `.claude/rules/` — no rule file c
 `RoleGuard` has the same `.some(...)` at `:39-41`, where OR is arguably the right semantics for
 roles; if the two guards are to differ, that difference should be written down rather than inferred.
 
-### §R2.3 A revoked role or permission stays in force — nothing invalidates the cached user — 🔴 bug — CONFIRMED
+### §R2.3 A revoked role or permission stays in force — nothing invalidates the cached user — 🔴 bug — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `libs/common/src/strategies/auth.strategy.ts:24-38` (the read and populate),
 `src/auth/auth.service.ts:83`, `:94-98` (the only two cache writes in the tree),
@@ -715,7 +739,7 @@ already exists and `UserCache(userId)` is the key builder; the role case needs t
 which `UserRepository` can supply. Half a day including the role fan-out. Fix this **before or with**
 §R3.1, never after. The identical gap exists in `clean-nest-prisma-pg`.
 
-### §R2.4 `RoleGuard` is not registered on the roles controller — 🟠 latent risk — CONFIRMED
+### §R2.4 `RoleGuard` is not registered on the roles controller — 🟠 latent risk — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `src/settings/roles/roles.controller.ts:37`
 
@@ -740,7 +764,7 @@ the more durable fix and worth considering together with §R2.1.
 
 ## §R3 Cache
 
-### §R3.1 Cached entries expire after 3.6 seconds instead of an hour — 🟠 latent risk — CONFIRMED
+### §R3.1 Cached entries expire after 3.6 seconds instead of an hour — 🟠 latent risk — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `libs/common/src/cache/cache.service.ts:10-13`,
 `libs/common/src/cache/cache.module.ts:16`, `libs/config/src/env/index.ts:90`
@@ -790,7 +814,7 @@ change; the sequencing is the real content. The identical mismatch is in `clean-
 
 ## §R4 List queries — filtering and sorting
 
-### §R4.1 Combining two filters on the user list silently drops all but the last — 🔴 bug — CONFIRMED
+### §R4.1 Combining two filters on the user list silently drops all but the last — 🔴 bug — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `libs/repositories/src/repositories/user.repository.ts:150-190`
 
@@ -825,7 +849,7 @@ same defect Tier 9 found and fixed in `clean-elysia`.
 hour, and it needs a two-filter request to verify. `clean-nest-prisma-pg` composes by object spread
 and is **not** affected.
 
-### §R4.2 `filter[name]` on the role list can never match anything — 🔴 bug — CONFIRMED
+### §R4.2 `filter[name]` on the role list can never match anything — 🔴 bug — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `libs/repositories/src/repositories/role.repository.ts:100-106`
 
@@ -854,7 +878,7 @@ suggest the query was malformed rather than genuinely empty.
 **What we should do.** Use `ilike(roles_table.name, \`%${...}%\`)`, matching the user repository. One
 line. While there, decide the semantics across all three list endpoints — see §R4.5.
 
-### §R4.3 An out-of-range status filter reaches Postgres unchecked and returns 500 — 🔴 bug — CONFIRMED
+### §R4.3 An out-of-range status filter reaches Postgres unchecked and returns 500 — 🔴 bug — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `libs/repositories/src/repositories/user.repository.ts:153-157`
 
@@ -883,7 +907,7 @@ enum members are available from the schema, so the check should read from there 
 them. Under an hour. The same unchecked cast exists in `clean-nest-prisma-pg`
 (`user.repository.ts:116-121`), where an invalid value produces a Prisma validation error instead.
 
-### §R4.4 `?search=` may 500 on the user list because it pattern-matches an enum column — 🟠 latent risk — SUSPECT
+### §R4.4 `?search=` 500s on the user list because it pattern-matches an enum column — 🔴 bug — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `libs/repositories/src/repositories/user.repository.ts:129-138`
 
@@ -905,10 +929,10 @@ Postgres has no `ILIKE` operator for a user-defined enum type; matching one requ
 to `text`. If Drizzle emits `"status" ILIKE $1` without that cast, the statement fails with
 `operator does not exist: user_status ~~* unknown`.
 
-**Unverified:** whether Drizzle inserts a cast for an enum column passed to `ilike`. **What would
-settle it:** one request — `GET /settings/users?search=a` against a running instance with the
-database up. If it returns rows, this is refuted; if it 500s, it is confirmed and outranks §R4.3,
-because `search` is the parameter a UI wires to its search box.
+**Settled by running it, 2026-08-23.** `GET /settings/users?search=a` against a live instance
+returned **500**. Drizzle emits `"status" ILIKE $1` with no cast and Postgres rejects it. This was
+filed as SUSPECT and is now CONFIRMED — it outranks §R4.3, because `search` is the parameter a UI
+wires to its search box.
 
 **What it costs, if confirmed.** Every free-text search on the user list returns 500 — the single
 most-used query parameter on the most-used list endpoint, broken outright.
@@ -918,7 +942,7 @@ most-used query parameter on the most-used list endpoint, broken outright.
 or cast explicitly. Do not "fix" it speculatively — this is a SUSPECT precisely because it is
 cheap to verify and the answer decides whether it is a one-line change or a non-issue.
 
-### §R4.5 `filter[name]` means three different things on three endpoints — 🟠 inconsistency — CONFIRMED
+### §R4.5 `filter[name]` means three different things on three endpoints — 🟠 inconsistency — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `user.repository.ts:159-163`, `role.repository.ts:100-106`,
 `permission.repository.ts:92-97`
@@ -941,7 +965,7 @@ a list UI — apply it in all three repositories, and record it in `.claude/rule
 the allow-list rules, which currently say what may be filtered but not how. Half a day including the
 rule and the doc. Fold §R4.2's fix into this rather than doing them separately.
 
-### §R4.6 `filter[role_id]` accepts one id and silently matches nothing for more — 🟠 latent risk — CONFIRMED
+### §R4.6 `filter[role_id]` accepts one id and silently matches nothing for more — 🟠 latent risk — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `libs/repositories/src/repositories/user.repository.ts:174-188`
 
@@ -968,7 +992,7 @@ both the key name and the semantics.
 
 ## §R5 Queue and mail
 
-### §R5.1 The verification email is enqueued inside the transaction that creates its token — 🔴 bug — CONFIRMED
+### §R5.1 The verification email is enqueued inside the transaction that creates its token — 🔴 bug — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `src/auth/auth.service.ts:131-167` (`register`), `:271-287` (`forgotPassword`),
 `libs/common/src/mail/mail.service.ts:16-19`, `.claude/rules/service.md` (the transaction example)
@@ -1018,7 +1042,7 @@ leaving it would reintroduce this on the next feature. An hour including the rul
 is in `clean-nest-prisma-pg`'s `register` (`auth.service.ts:116-142`), though **not** in its
 `forgotPassword`, which correctly enqueues outside.
 
-### §R5.2 A transient mail failure loses the message permanently and logs nothing — 🟠 latent risk — CONFIRMED
+### §R5.2 A transient mail failure loses the message permanently and logs nothing — 🟠 latent risk — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `libs/common/src/mail/mail.module.ts:45-52`, `libs/common/src/mail/mail.processor.ts:24-36`
 
@@ -1054,7 +1078,7 @@ because these repos deploy from a checkout via PM2 rather than from an image.
 
 ## §R6 Configuration and hygiene
 
-### §R6.1 Two dead JWT secret fallbacks that read as live vulnerabilities — 🟠 latent risk — CONFIRMED
+### §R6.1 Two dead JWT secret fallbacks that read as live vulnerabilities — 🟠 latent risk — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `libs/utils/src/jwt/jwt.utils.ts:11-13`,
 `libs/common/src/strategies/auth.strategy.ts:20`, `libs/config/src/env/index.ts:73-74`
@@ -1086,7 +1110,7 @@ already the guarantee, and the `||` only obscures it. Minutes. The sibling `clea
 already does exactly this (`jwt.utils.ts:11`, `auth.strategy.ts:22`, no fallback), so this is
 straightforward drift and the Prisma version is the reference.
 
-### §R6.2 A hardcoded English message in a service that translates everything else — 📄 doc / 🟠 — CONFIRMED
+### §R6.2 A hardcoded English message in a service that translates everything else — 📄 doc / 🟠 — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `src/auth/auth.service.ts:261-268`
 
@@ -1112,7 +1136,7 @@ used elsewhere in the same file — `message.auth.verify_email_required`, thrown
 No catalogue change needed. Minutes. The sibling `clean-nest-prisma-pg` already uses that key at the
 equivalent line (`auth.service.ts:242-249`), which confirms the intended wording.
 
-### §R6.3 The service rule contradicts the i18n rule on exception messages — 📄 doc — CONFIRMED
+### §R6.3 The service rule contradicts the i18n rule on exception messages — 📄 doc — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `.claude/rules/service-crud.md` (`getDetail`, `create`, `update`, `remove` examples),
 `.claude/rules/service.md` ("Existence checks and errors" table), `.claude/rules/i18n.md`
@@ -1180,3 +1204,115 @@ Recorded so the next sweep can tell "clean" from "not looked at".
 - **Dependencies are current enough.** `bun outdated` shows nothing alarming: `@fastify/static`
   9→10, `bullmq` 5→6, `ioredis` 5→6, and `nodemailer` 8→9 are majors behind; everything else is
   within a patch or minor. No advisory-driven upgrade is indicated.
+
+---
+
+## §R2.5 Assigning permissions to a role has never worked — 🔴 bug — CONFIRMED — ✅ RESOLVED 2026-08-23
+
+> **Found while verifying the §R2.3 fix, not during the sweep.** It is recorded here because it is a
+> defect in its own right, and because it is the reason §R2.3 could not be verified at first: every
+> attempt to revoke a role's permissions reported success and changed nothing.
+
+**Where:** `libs/repositories/src/repositories/role.repository.ts:170` (`create`), `:267` (`update`),
+`src/settings/roles/dto/create-role.dto.ts:25`, `src/settings/roles/roles.service.ts`
+
+**What this is.** `POST /settings/roles` and `PATCH /settings/roles/:id` accept a role name and a list
+of permission ids, and are the only way to manage what a role grants. The service validates that every
+id exists, then hands the whole DTO to `RoleRepository().create(...)` / `.update(...)`, which writes
+the `role_permissions` join rows.
+
+**Why this can happen.** The DTO declares the field as `permissionIds`; the repository read
+`roleData.permission_ids`. The two never matched, so the property was always `undefined` and the
+entire permission block was skipped:
+
+```ts
+// repository — the field no caller ever sent
+roleData: { name?: string; permission_ids?: string[] },
+...
+if (roleData.permission_ids) { /* delete + reinsert the join rows */ }
+```
+
+TypeScript did not catch it because `permission_ids` is **optional**, and excess-property checking
+does not fire when an object is passed as a variable rather than an object literal. The DTO satisfied
+the parameter type by having a `name`; its `permissionIds` was simply ignored. This is the same shape
+as the `remarks` / `remark` lying type recorded against `clean-elysia` — a declared contract that does
+not match what the caller sends, invisible to the compiler.
+
+**What it costs.** Role permission management is entirely non-functional, and it fails **silently with
+a success response**:
+
+- `POST /settings/roles` with two permission ids returns **201** and writes **zero** join rows. The
+  new role grants nothing.
+- `PATCH /settings/roles/:id` returns **200** and changes nothing — so an administrator cannot grant a
+  permission, cannot revoke one, and cannot strip a role back to nothing. The UI shows the change
+  they made; the database does not have it.
+
+The application appears to work only because `libs/repositories/src/seed/role.seed.ts` writes
+`role_permissions` directly, bypassing this path entirely. Every working permission grant in a running
+system came from the seeder.
+
+**Verified by running it, before the fix:**
+
+```
+POST /settings/roles  {name, permissionIds: [2 ids]}  -> 201, role_permissions rows = 0
+PATCH /settings/roles/:id {permissionIds: [2 ids]}    -> 200, role_permissions rows = 0
+```
+
+**What we should do — done.** The repository's input field was renamed to `permissionIds` to match the
+DTO, keeping the `permission_id` **column** name untouched. Re-verified live: creating with 2 ids
+writes 2 rows, updating to 5 writes 5, and updating to `[]` correctly revokes all of them. The sibling
+`clean-nest-prisma-pg` builds these rows in the service from `createRoleDto.permissionIds` directly and
+is **not** affected.
+
+## §R2.6 The Redis cache was never used — every process held its own in-memory copy — 🔴 bug — CONFIRMED — ✅ RESOLVED 2026-08-23
+
+> **Also found while verifying §R2.3**, by checking Redis for the key the fix was supposed to be
+> deleting and finding that no such key had ever existed.
+
+**Where:** `libs/common/src/cache/cache.module.ts`, `package.json`
+(`cache-manager@^7`, `@nestjs/cache-manager@^3`, `cache-manager-ioredis-yet@^2`)
+
+**What this is.** `CacheModule` configures the store that backs `CacheService`, which is what
+`AuthStrategy` uses to avoid rebuilding every caller's roles and permissions from Postgres on each
+request. It was written to use Redis, and `cache-manager-ioredis-yet` is a declared dependency.
+
+**Why this can happen.** The configuration used the cache-manager v4/v5 shape:
+
+```ts
+useFactory: () => ({
+	store: redisStore,
+	host: getEnv().REDIS_HOST,
+	port: Number(getEnv().REDIS_PORT),
+	ttl: (Number(getEnv().REDIS_TTL) || 3600) * 1000,
+}),
+```
+
+cache-manager v7 is Keyv-based and takes a `stores` array. The `store` / `host` / `port` keys are not
+rejected — they are silently ignored — so the module fell through to the default in-process memory
+store. Nothing was ever written to Redis, and no error was raised at boot or at runtime.
+
+**What it costs.** Two things, and the second is the serious one:
+
+- The declared Redis dependency did nothing, and the cache did not survive a restart.
+- **Under PM2 the cache was per-worker.** `ecosystem.config.js` runs `instances: "max"` in cluster
+  mode, so each worker held its own independent copy of every user's roles and permissions. That
+  makes the §R2.3 invalidation fix incomplete in exactly the environment it matters: deleting the
+  cached identity clears it on the one worker that served the request, while the other workers keep
+  serving the revoked role until their own copy expires.
+
+The reason this went unnoticed is that Redis *is* up and busy — BullMQ uses it — so "Redis is
+connected" was true and misleading.
+
+**Verified by running it.** Before: `redis-cli --scan` returned only `bull:*` keys, and
+`TTL user:<id>` returned `-2` (no such key). After: `user:<id>` is present with a TTL of `3600`, and
+revoking a role's permissions still takes effect on the very next request.
+
+**What we should do — done.** `CacheModule` now builds a `Keyv` instance over `@keyv/redis` and
+passes it in `stores`, with `useKeyPrefix: false` so the key is the plain `user:<id>` that
+`UserCache()` produces. `@keyv/redis` was added as a dependency. Two follow-ups deliberately **not**
+taken, and left for a decision:
+
+- `cache-manager-ioredis-yet` is now unused and could be removed. It was left in place because
+  removing a dependency is a separate change with its own lockfile churn.
+- Nothing yet proves the cross-worker behaviour under an actual multi-instance PM2 run — this was
+  verified against a single process. A cluster-mode check belongs in the next pass.

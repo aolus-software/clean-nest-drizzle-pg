@@ -17,13 +17,18 @@ import { EmailVerificationDto } from "./dto/email-verification.dto";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { ResetPasswordTokenValidationDto } from "./dto/reset-password-token-validation.dto";
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { getEnv } from "@config";
 import {
 	emailVerificationLifetime,
 	resetPasswordLifetime,
 } from "@utils/default/token-lifetime";
 import { I18nService } from "nestjs-i18n";
+
+/* A real bcrypt hash of a value nobody holds. Compared against when the email
+   does not resolve, purely so the failed-login path costs the same either way. */
+const TIMING_EQUALISER_HASH =
+	"$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
 
 @Injectable()
 export class AuthService {
@@ -39,7 +44,19 @@ export class AuthService {
 		refreshToken: string;
 	}> {
 		const user = await UserRepository().findByEmail(data.email);
-		if (!user) {
+
+		/* Verify the password before looking at account state, and answer an
+		   unknown address and a wrong password with the same message. Checking
+		   "is this email verified" first would let an unauthenticated caller
+		   tell a registered address from an unknown one without ever holding a
+		   valid password. The dummy comparison keeps the response time for an
+		   unknown address in line with a real one, so timing does not leak what
+		   the message no longer does. */
+		const isPasswordValid = user
+			? await HashUtils.compareHash(data.password, user.password)
+			: await HashUtils.compareHash(data.password, TIMING_EQUALISER_HASH);
+
+		if (!user || !isPasswordValid) {
 			throw new UnprocessableEntityException({
 				message: this.i18n.t("message.auth.invalid_credentials"),
 				error: {
@@ -62,19 +79,6 @@ export class AuthService {
 				message: this.i18n.t("message.auth.account_inactive"),
 				error: {
 					email: [this.i18n.t("message.auth.account_inactive")],
-				},
-			});
-		}
-
-		const isPasswordValid = await HashUtils.compareHash(
-			data.password,
-			user.password,
-		);
-		if (!isPasswordValid) {
-			throw new UnprocessableEntityException({
-				message: this.i18n.t("message.auth.invalid_credentials"),
-				error: {
-					email: [this.i18n.t("message.auth.invalid_credentials")],
 				},
 			});
 		}
@@ -128,7 +132,12 @@ export class AuthService {
 		}
 
 		const hashedPassword = await HashUtils.generateHash(data.password);
-		await db.transaction(async (tx) => {
+
+		/* The mail is enqueued only after the transaction commits. Redis and
+		   Postgres share no transaction, so enqueuing inside the callback lets
+		   the worker send a verification link whose token row is not committed
+		   yet — or send one at all for a registration that rolled back. */
+		const token = await db.transaction(async (tx) => {
 			const newUser = await UserRepository()
 				.getDb(tx)
 				.insert(users_table)
@@ -148,22 +157,24 @@ export class AuthService {
 				});
 			}
 
-			const token = StrUtils.random(255);
+			const verificationToken = StrUtils.random(255);
 			await tx.insert(email_verifications_table).values({
 				user_id: newUser[0].id,
-				token: token,
+				token: verificationToken,
 				expired_at: emailVerificationLifetime(),
 			});
 
-			await this.mailService.sendMail({
-				subject: this.i18n.t("email.verify_email.subject"),
-				to: data.email,
-				template: "auth/verify-email",
-				context: {
-					name: data.name,
-					verifyUrl: `${getEnv().FRONTEND_URL}/verify-email?token=${token}`,
-				},
-			});
+			return verificationToken;
+		});
+
+		await this.mailService.sendMail({
+			subject: this.i18n.t("email.verify_email.subject"),
+			to: data.email,
+			template: "auth/verify-email",
+			context: {
+				name: data.name,
+				verifyUrl: `${getEnv().FRONTEND_URL}/verify-email?token=${token}`,
+			},
 		});
 	}
 
@@ -175,32 +186,33 @@ export class AuthService {
 			return;
 		}
 
+		/* Already verified: return as though the mail was sent. Throwing here
+		   would tell an unauthenticated caller that the address is registered
+		   and verified, which is exactly what the silent branch above exists to
+		   prevent. */
 		if (user.email_verified_at) {
-			throw new UnprocessableEntityException({
-				message: this.i18n.t("message.auth.email_already_verified"),
-				error: {
-					email: [this.i18n.t("message.auth.email_already_verified")],
-				},
-			});
+			return;
 		}
 
 		const token = StrUtils.random(255);
+
+		/* Enqueued after the write commits — see the note in register(). */
 		await db.transaction(async (tx) => {
 			await tx.insert(email_verifications_table).values({
 				user_id: user.id,
 				token: token,
 				expired_at: emailVerificationLifetime(),
 			});
+		});
 
-			await this.mailService.sendMail({
-				subject: this.i18n.t("email.verify_email.subject"),
-				to: user.email,
-				template: "auth/verify-email",
-				context: {
-					name: user.name,
-					verifyUrl: `${getEnv().FRONTEND_URL}/verify-email?token=${token}`,
-				},
-			});
+		await this.mailService.sendMail({
+			subject: this.i18n.t("email.verify_email.subject"),
+			to: user.email,
+			template: "auth/verify-email",
+			context: {
+				name: user.name,
+				verifyUrl: `${getEnv().FRONTEND_URL}/verify-email?token=${token}`,
+			},
 		});
 	}
 
@@ -208,7 +220,7 @@ export class AuthService {
 		const emailVerification = await db.query.email_verifications.findFirst({
 			where: and(
 				eq(email_verifications_table.token, data.token),
-				isNotNull(email_verifications_table.used_at),
+				isNull(email_verifications_table.used_at),
 			),
 		});
 
@@ -258,32 +270,33 @@ export class AuthService {
 			return;
 		}
 
+		/* Not yet verified: return silently rather than throwing. A distinct
+		   error here would reveal that the address is registered — the same
+		   disclosure the unknown-address branch above avoids. (This also
+		   removes the one hardcoded English string in this service.) */
 		if (!user.email_verified_at) {
-			throw new UnprocessableEntityException({
-				message: "Please verify your email to proceed",
-				error: {
-					email: ["Please verify your email to proceed"],
-				},
-			});
+			return;
 		}
 
 		const token = StrUtils.random(255);
+
+		/* Enqueued after the write commits — see the note in register(). */
 		await db.transaction(async (tx) => {
 			await tx.insert(password_reset_tokens_table).values({
 				user_id: user.id,
 				token: token,
 				expired_at: resetPasswordLifetime(),
 			});
+		});
 
-			await this.mailService.sendMail({
-				to: user.email,
-				subject: this.i18n.t("email.forgot_password.subject"),
-				template: "auth/forgot-password",
-				context: {
-					name: user.name,
-					resetUrl: `${getEnv().FRONTEND_URL}/reset-password?token=${token}`,
-				},
-			});
+		await this.mailService.sendMail({
+			to: user.email,
+			subject: this.i18n.t("email.forgot_password.subject"),
+			template: "auth/forgot-password",
+			context: {
+				name: user.name,
+				resetUrl: `${getEnv().FRONTEND_URL}/reset-password?token=${token}`,
+			},
 		});
 	}
 
@@ -293,7 +306,7 @@ export class AuthService {
 		const resetPassword = await db.query.password_reset_tokens.findFirst({
 			where: and(
 				eq(password_reset_tokens_table.token, data.token),
-				isNotNull(password_reset_tokens_table.used_at),
+				isNull(password_reset_tokens_table.used_at),
 			),
 		});
 
@@ -318,7 +331,7 @@ export class AuthService {
 		const resetPassword = await db.query.password_reset_tokens.findFirst({
 			where: and(
 				eq(password_reset_tokens_table.token, data.token),
-				isNotNull(password_reset_tokens_table.used_at),
+				isNull(password_reset_tokens_table.used_at),
 			),
 		});
 

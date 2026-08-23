@@ -49,6 +49,15 @@ import { getEnv } from "@config";
 				port: getEnv().REDIS_PORT,
 				password: getEnv().REDIS_PASSWORD,
 			},
+			/* Without attempts, BullMQ tries once: a transient SMTP failure or a
+			   provider rate limit permanently drops a verification or reset
+			   email, and the user simply never receives it. */
+			defaultJobOptions: {
+				attempts: 3,
+				backoff: { type: "exponential", delay: 2000 },
+				removeOnComplete: 100,
+				removeOnFail: 500,
+			},
 		}),
 	],
 

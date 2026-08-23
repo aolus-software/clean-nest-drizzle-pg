@@ -7,18 +7,34 @@ import { CreateRoleDto } from "./dto/create-role.dto";
 import { UpdateRoleDto } from "./dto/update-role.dto";
 import { DatatableType, PaginationResponse } from "@common";
 import {
-	db,
 	RoleDetail,
 	RoleList,
 	RoleRepository,
+	UserRepository,
+	db,
 	roles_table,
 } from "@repositories";
 import { and, eq, not } from "drizzle-orm";
 import { I18nService } from "nestjs-i18n";
+import { CacheService, UserCache } from "@common";
 
 @Injectable()
 export class RolesService {
-	constructor(private readonly i18n: I18nService) {}
+	constructor(
+		private readonly i18n: I18nService,
+		private readonly cacheService: CacheService,
+	) {}
+
+	/* Drops the cached identity of every user holding this role. A role's
+	   permission set is part of what AuthStrategy caches per user, so changing
+	   or deleting the role has to invalidate all of its holders — not just the
+	   caller who made the change. */
+	private async invalidateRoleHolders(roleId: string): Promise<void> {
+		const userIds = await UserRepository().findIdsByRole(roleId);
+		await Promise.all(
+			userIds.map((userId) => this.cacheService.del(UserCache(userId))),
+		);
+	}
 
 	async create(createRoleDto: CreateRoleDto): Promise<void> {
 		const isNameExists = await db.query.roles.findFirst({
@@ -111,11 +127,20 @@ export class RolesService {
 		await db.transaction(async (tx) => {
 			await RoleRepository().update(id, updateRoleDto, tx);
 		});
+
+		await this.invalidateRoleHolders(id);
 	}
 
 	async remove(id: string): Promise<void> {
+		/* Collected before the delete — the join rows are gone afterwards. */
+		const userIds = await UserRepository().findIdsByRole(id);
+
 		await db.transaction(async (tx) => {
 			await RoleRepository().delete(id, tx);
 		});
+
+		await Promise.all(
+			userIds.map((userId) => this.cacheService.del(UserCache(userId))),
+		);
 	}
 }

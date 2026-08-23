@@ -1,4 +1,5 @@
 import { successResponse } from "@common/response/response";
+import { Public } from "@common";
 import { Controller, Get, Res } from "@nestjs/common";
 import { ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { DateUtils } from "@utils";
@@ -6,6 +7,7 @@ import { FastifyReply } from "fastify";
 import { getEnv } from "@config";
 import { I18nService } from "nestjs-i18n";
 
+@Public()
 @Controller()
 @ApiTags("App")
 export class AppController {

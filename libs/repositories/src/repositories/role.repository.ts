@@ -99,9 +99,13 @@ export const RoleRepository = () => {
 			let filterWhereCondition: SQL | undefined = undefined;
 			if (filter) {
 				if (filter.name) {
+					/* ilike, not eq. eq renders "=", which does not interpret the
+					   surrounding % — the predicate became name = '%admin%' and
+					   matched only a role literally named that, so this filter
+					   could never return a row. */
 					filterWhereCondition = and(
 						filterWhereCondition,
-						eq(roles_table.name, `%${filter.name.toString()}%`),
+						ilike(roles_table.name, `%${filter.name.toString()}%`),
 					);
 				}
 			}
@@ -157,8 +161,13 @@ export const RoleRepository = () => {
 			};
 		},
 
+		/* The input field is permissionIds, matching the DTO. It used to be
+		   permission_ids, which no caller ever sent — the property is optional,
+		   so TypeScript accepted the DTO and the whole permission block was
+		   skipped at runtime. Creating or updating a role silently assigned no
+		   permissions while reporting success. */
 		create: async (
-			roleData: { name: string; permission_ids?: string[] },
+			roleData: { name: string; permissionIds?: string[] },
 			tx?: DbTransaction,
 		): Promise<string> => {
 			const database = tx || dbInstance;
@@ -171,13 +180,11 @@ export const RoleRepository = () => {
 				.returning({ id: roles_table.id });
 
 			const role = result[0];
-			if (roleData.permission_ids && roleData.permission_ids.length > 0) {
-				const rolePermissions = roleData.permission_ids.map(
-					(permission_id) => ({
-						role_id: role.id,
-						permission_id,
-					}),
-				);
+			if (roleData.permissionIds && roleData.permissionIds.length > 0) {
+				const rolePermissions = roleData.permissionIds.map((permission_id) => ({
+					role_id: role.id,
+					permission_id,
+				}));
 
 				await database.insert(role_permissions_table).values(rolePermissions);
 			}
@@ -255,7 +262,7 @@ export const RoleRepository = () => {
 
 		update: async (
 			id: string,
-			roleData: { name?: string; permission_ids?: string[] },
+			roleData: { name?: string; permissionIds?: string[] },
 			tx?: DbTransaction,
 		): Promise<void> => {
 			const database = tx || dbInstance;
@@ -268,13 +275,13 @@ export const RoleRepository = () => {
 				})
 				.where(eq(roles_table.id, id));
 
-			if (roleData.permission_ids) {
+			if (roleData.permissionIds) {
 				await database
 					.delete(role_permissions_table)
 					.where(eq(role_permissions_table.role_id, id));
 
-				if (roleData.permission_ids.length > 0) {
-					const rolePermissions = roleData.permission_ids.map(
+				if (roleData.permissionIds.length > 0) {
+					const rolePermissions = roleData.permissionIds.map(
 						(permission_id) => ({
 							role_id: id,
 							permission_id,

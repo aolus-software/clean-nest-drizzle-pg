@@ -27,13 +27,15 @@ async findAll(query: DatatableType): Promise<PaginationResponse<UserList>> {
 
 ## getDetail
 
-Fetch by ID; throw `NotFoundException` if missing. The exception message format is `"<Entity> with ID ${id} not found"`.
+Fetch by ID; throw `NotFoundException` if missing. The message is an i18n key, not a literal.
 
 ```ts
 async getDetail(id: string): Promise<UserDetail> {
 	const data = await UserRepository().getDetail(id);
 	if (!data) {
-		throw new NotFoundException(`User with ID ${id} not found`);
+		throw new NotFoundException(
+			this.i18n.t("message.user.not_found", { args: { id } }),
+		);
 	}
 	return data;
 }
@@ -48,8 +50,8 @@ async create(dto: CreateUserDto): Promise<void> {
 	const exists = await UserRepository().findByEmail(dto.email);
 	if (exists) {
 		throw new UnprocessableEntityException({
-			message: "Email already exists",
-			error: { email: ["Email already exists"] },
+			message: this.i18n.t("message.user.email_exists"),
+			error: { email: [this.i18n.t("message.user.email_exists")] },
 		});
 	}
 
@@ -72,14 +74,16 @@ Verify existence, re-check uniqueness only for changed fields, then write in a t
 async update(id: string, dto: UpdateUserDto): Promise<void> {
 	const data = await UserRepository().getDetail(id);
 	if (!data) {
-		throw new NotFoundException(`User with ID ${id} not found`);
+		throw new NotFoundException(
+			this.i18n.t("message.user.not_found", { args: { id } }),
+		);
 	}
 
 	const emailOwner = await UserRepository().findByEmail(dto.email);
 	if (emailOwner && emailOwner.id !== id) {
 		throw new UnprocessableEntityException({
-			message: "Email already exists",
-			error: { email: ["Email already exists"] },
+			message: this.i18n.t("message.user.email_exists"),
+			error: { email: [this.i18n.t("message.user.email_exists")] },
 		});
 	}
 
@@ -97,7 +101,9 @@ Verify existence, then soft-delete (set `deleted_at`) — do not issue a hard `D
 async remove(id: string): Promise<void> {
 	const data = await UserRepository().getDetail(id);
 	if (!data) {
-		throw new NotFoundException(`User with ID ${id} not found`);
+		throw new NotFoundException(
+			this.i18n.t("message.user.not_found", { args: { id } }),
+		);
 	}
 	await db.transaction(async (tx) => {
 		await tx.update(users_table).set({ deleted_at: DateUtils.now().toDate() }).where(eq(users_table.id, id));
@@ -116,3 +122,11 @@ import { eq } from "drizzle-orm";
 ```
 
 Import only the exceptions the service actually throws.
+
+## Exception messages are i18n lookups, never literals
+
+Every message reaching a client goes through `this.i18n.t(...)` — see [i18n.md](./i18n.md), which is
+the authority. The examples in this file used to show bare English template literals
+(`` `User with ID ${id} not found` ``), which contradicted that rule: anyone following this file wrote
+untranslated exceptions and was compliant with the rule they had read. The examples above are the
+correct form.

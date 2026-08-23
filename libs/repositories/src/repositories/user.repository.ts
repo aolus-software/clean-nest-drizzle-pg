@@ -1,5 +1,6 @@
 import {
 	and,
+	inArray,
 	eq,
 	isNull,
 	or,
@@ -14,6 +15,7 @@ import {
 	user_roles_table,
 	users_table,
 	UserStatusEnum,
+	UserStatusEnumArray,
 } from "@repositories/schema";
 import { DatatableType, PaginationResponse, SortDirection } from "@common";
 import { defaultSort, HashUtils } from "@utils";
@@ -129,10 +131,14 @@ export const UserRepository = () => {
 			if (search) {
 				whereCondition = and(
 					whereCondition,
+					/* name and email only. status is a Postgres enum, and there
+					   is no ILIKE operator for a user-defined enum type — including
+					   it made every ?search= request fail at the driver with a 500.
+					   Narrow by status with filter[status], which is validated
+					   against the enum below. */
 					or(
 						ilike(users_table.name, `%${search}%`),
 						ilike(users_table.email, `%${search}%`),
-						ilike(users_table.status, `%${search}%`),
 					),
 				);
 			}
@@ -148,32 +154,57 @@ export const UserRepository = () => {
 				}
 			}
 
-			let filteredCondition: SQL | undefined = undefined;
+			/* Each branch appends to the accumulator. Assigning to it — and
+			   re-basing on whereCondition every time — silently discarded every
+			   filter but the last, so filter[status]=active&filter[name]=jane
+			   returned every jane regardless of status. */
+			let filteredCondition: SQL | undefined = whereCondition;
 			if (filter) {
 				if (filter.status) {
+					/* The key is allow-listed above; the value was not. An
+					   unrecognised member cast straight to the enum reaches
+					   Postgres and fails at the driver as a 500 — reject it here
+					   as the 400 the allow-list machinery exists to produce. */
+					const status = filter.status.toString();
+					if (!UserStatusEnumArray.includes(status as UserStatusEnum)) {
+						throw new BadRequestException(
+							I18nContext.current()?.t("message.common.invalid_filter_field") ??
+								"Invalid filter field",
+						);
+					}
+
 					filteredCondition = and(
-						whereCondition,
-						eq(users_table.status, filter.status as UserStatusEnum),
+						filteredCondition,
+						eq(users_table.status, status as UserStatusEnum),
 					);
 				}
 
 				if (filter.name) {
 					filteredCondition = and(
-						whereCondition,
+						filteredCondition,
 						ilike(users_table.name, `%${filter.name.toString()}%`),
 					);
 				}
 
 				if (filter.email) {
 					filteredCondition = and(
-						whereCondition,
+						filteredCondition,
 						ilike(users_table.email, `%${filter.email.toString()}%`),
 					);
 				}
 
 				if (filter.role_id) {
+					/* A comma-separated value means "holding any of these roles".
+					   Comparing the raw string with eq() matches no row at all
+					   the moment a caller passes more than one id. */
+					const roleIds = filter.role_id
+						.toString()
+						.split(",")
+						.map((value) => value.trim())
+						.filter((value) => value.length > 0);
+
 					filteredCondition = and(
-						whereCondition,
+						filteredCondition,
 						exists(
 							database
 								.select()
@@ -181,7 +212,7 @@ export const UserRepository = () => {
 								.where(
 									and(
 										eq(user_roles_table.user_id, users_table.id),
-										eq(user_roles_table.role_id, filter.role_id as string),
+										inArray(user_roles_table.role_id, roleIds),
 									),
 								),
 						),
@@ -189,10 +220,7 @@ export const UserRepository = () => {
 				}
 			}
 
-			const finalWhereCondition: SQL | undefined = and(
-				whereCondition,
-				filteredCondition ? filteredCondition : undefined,
-			);
+			const finalWhereCondition: SQL | undefined = filteredCondition;
 
 			type OrderableKey = keyof typeof userOrderableColumns;
 			const orderableKeys = userSortableFields as OrderableKey[];
@@ -539,6 +567,22 @@ export const UserRepository = () => {
 				createdAt: user.created_at,
 				updatedAt: user.updated_at,
 			};
+		},
+
+		/* User ids holding a given role. Used to invalidate the cached identity
+		   of everyone affected when a role's permissions change — without it a
+		   revoked permission stays in force until each entry expires. */
+		findIdsByRole: async (
+			roleId: string,
+			tx?: DbTransaction,
+		): Promise<string[]> => {
+			const database = tx || dbInstance;
+			const rows = await database
+				.select({ user_id: user_roles_table.user_id })
+				.from(user_roles_table)
+				.where(eq(user_roles_table.role_id, roleId));
+
+			return rows.map((row) => row.user_id);
 		},
 
 		findByEmail: async (
