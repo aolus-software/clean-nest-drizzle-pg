@@ -1316,3 +1316,247 @@ taken, and left for a decision:
   removing a dependency is a separate change with its own lockfile churn.
 - Nothing yet proves the cross-worker behaviour under an actual multi-instance PM2 run — this was
   verified against a single process. A cluster-mode check belongs in the next pass.
+
+---
+
+# Sweep 3 — code read, pass 2 (2026-08-23)
+
+**Scope:** the surfaces the Coverage block of sweep 2 listed as *not reached* — the settings
+services, all DTOs, the validation pipes, `libs/utils`, the i18n catalogues, and the seeders'
+relationship to the permission vocabulary.
+**Ground truth:** `CLAUDE.md`, `.claude/rules/*.md`, and the running code.
+
+**Severity legend:** 🔴 bug · 🟠 inconsistency / latent risk · 🟡 hygiene · 📄 doc
+**Evidence:** CONFIRMED (traced end to end) · SUSPECT (something unverified, named below)
+
+> **Read-only. Nothing below has been fixed.** Findings use a `§P` prefix so they never collide with
+> the `§R` sweep above.
+
+**Still not reached, after two passes:** the settings controllers' Swagger decorator blocks beyond a
+spot-check, `libs/utils/src/{date,string,number,logger}` (~750 lines of helpers), the Drizzle schema
+files and migrations, and the `api-response` / `api-datatable-queries` decorators.
+
+## §P1 A permission created through the API can never satisfy a guard — 🔴 bug — CONFIRMED
+
+**Where:** `libs/repositories/src/repositories/permission.repository.ts:153-155` (`create`),
+`src/settings/permissions/permissions.service.ts:58` (`update`),
+`libs/repositories/src/seed/permission.seed.ts:16` (the convention)
+
+**What this is.** A permission's `name` is the string `@PermissionAuth(...)` matches against. The
+seeder builds the whole catalogue as `` `${group}:${action}` `` — `user:list`, `role:create` — and
+every guard in `src/` is written in that vocabulary. `POST /settings/permissions` exists so an
+operator can extend the catalogue without editing the seeder.
+
+**Why this can happen.** Both write paths compose the two halves in the **opposite order**:
+
+```ts
+// seeder — the convention every guard uses
+name: `${group}:${action}`          // -> "user:list"
+
+// repository create — reversed
+name: `${name}:${permissionData.group}`   // -> "list:user"
+
+// service update — reversed the same way
+name: `${updatePermissionDto.name}:${updatePermissionDto.group}`
+```
+
+They are consistent with each other and backwards relative to the seeder, so nothing looks wrong
+inside the permissions module itself.
+
+**What it costs.** Every permission created through the API is unusable. An operator adding a
+`report:export` permission posts `{ names: ["export"], group: "report" }` and gets a row named
+`export:report`; a route guarded `@PermissionAuth("report:export")` will never match it, and — per
+the seeder invariant already recorded in `contradiction-halt.md` — that route then fails **closed**
+for everyone except `superuser`, with nothing logged. `update` makes it worse: renaming an existing,
+working permission rewrites it into the reversed form, silently breaking every route that referenced
+it.
+
+**Verified by running it.** `POST /settings/permissions {names:["export"], group:"report"}` stored
+`export:report`. The seeded convention would be `report:export`.
+
+**What we should do.** Compose `` `${group}:${action}` `` in both write paths, matching the seeder,
+and rename the DTO field so it says what it holds — `names` are *actions*, not full permission names,
+which is the ambiguity that allowed the inversion. The `@ApiProperty` example
+(`["create_user", "delete_user"]`) is in neither format and should be corrected with it. Under an
+hour; the risk is entirely in existing rows, so decide whether to migrate any API-created permissions
+before changing the composition. **The sibling `clean-nest-prisma-pg` has the identical inversion**
+(`permissions.service.ts:17`).
+
+## §P2 One `sendMail` is still enqueued inside its transaction — 🟠 latent risk — CONFIRMED
+
+**Where:** `src/settings/users/users.service.ts:77` (inside the `db.transaction` opened at `:47`)
+
+**What this is.** §R5.1 established that enqueuing a BullMQ job inside a database transaction lets
+the worker send a verification link whose token row is not committed yet, or send one at all for a
+write that rolled back.
+
+**Why this can happen.** The §R5.1 fix corrected all three sites in `src/auth/auth.service.ts` and
+**missed this one** — an administrator creating a user through `POST /settings/users` follows the
+same write-token-then-mail shape, in a different file. A sweep of every `sendMail` call site against
+its enclosing block finds exactly one remaining in each repo, both in `users.service.create`.
+
+**What it costs.** The same race and the same rollback window as §R5.1, on the admin-driven user
+creation path rather than self-registration. Narrower exposure, identical mechanism.
+
+**What we should do.** Return the token from the transaction callback and enqueue after it commits,
+exactly as `auth.service.ts` now does. Minutes. This is a gap in the earlier fix, not a new class of
+defect — worth noting that the fix was verified end-to-end on the auth flow and that verification
+simply did not cover this route.
+
+## §P3 `EncryptionUtils` is unused, and would be a poor choice if it were used — 🟠 latent risk — CONFIRMED
+
+**Where:** `libs/utils/src/encryption/encryption.utils.ts`
+
+**What this is.** A four-method AES wrapper over `crypto-js`, keyed on `APP_SECRET`, exported from
+`@utils` alongside `HashUtils` and `JWTUtils`.
+
+**Why this can happen.** It has **zero call sites** in `src/` or `libs/` in either repo — it ships as
+part of the template rather than in response to a need. Two properties make it a trap for the first
+person who reaches for it: `CryptoJS.AES.encrypt(text, passphraseString)` derives its key with
+OpenSSL's `EVP_BytesToKey` (MD5, one iteration, no configurable work factor), and the default mode is
+CBC with no authentication tag, so ciphertext is malleable and tampering is undetectable. `crypto-js`
+itself was archived by its maintainer in favour of the platform `crypto` API.
+
+**What it costs.** Nothing today. The cost is that it looks like the house-approved way to encrypt
+something, sits behind the same `@utils` import as the correctly-built `HashUtils`, and carries the
+two `eslint-disable` lines that suggest it was fought with rather than reviewed.
+
+**What we should do.** Either delete it — it is dead — or replace the internals with
+`node:crypto` AES-256-GCM and a proper KDF, and say in a comment what it is for. Deleting is the
+honest default for a template: nothing needs it, and a future need is better served by writing the
+thing the need actually calls for. Half an hour either way.
+
+## §P4 Services reach past the repository into the database — 🟠 inconsistency — CONFIRMED
+
+**Where:** `src/settings/users/users.service.ts:89-94` (`resendVerificationEmail`),
+`src/settings/permissions/permissions.service.ts:45-47` and `:66-68`
+
+**What this is.** `.claude/rules/nestjs.md` and `repository.md` both state the layering: controllers
+delegate to services, services call repositories, repositories own the queries. Every other method in
+these two services follows it.
+
+**Why this can happen.** Three methods build queries inline instead —
+`UserRepository().getDb().query.users.findFirst(...)` in one case, bare
+`db.query.permissions.findFirst(...)` in the other two. `getDb()` is the escape hatch that makes the
+first one possible while still looking like repository usage.
+
+**What it costs.** No wrong behaviour today. The cost is that the soft-delete filter, the column
+selection, and the "what does a miss return" convention are now decided in two places. The
+`permissions` reads happen to be correct; the `users` one duplicates a `deleted_at` filter that
+`UserRepository` already owns — and the next person to change that filter will change it in one
+place.
+
+**What we should do.** Add the two missing lookups to their repositories (`findForVerification(id)`,
+`PermissionRepository().findById(id)`) and call those. Under an hour. Worth doing when §P1 is fixed,
+since it touches the same permissions service.
+
+## §P5 A DTO imports the schema by relative path, bypassing the alias — 🟡 hygiene — CONFIRMED
+
+**Where:** `src/settings/users/dto/create-user.dto.ts:2-5`
+
+**What this is.** `imports-and-naming.md` and `shared-code.md` both require the `@repositories` alias
+for cross-layer imports and explicitly forbid `../../libs/...`.
+
+**Why this can happen.** The DTO reaches four levels up:
+`"../../../../libs/repositories/src/schema/user.schema"`. It resolves, so nothing complains.
+
+**What it costs.** It breaks the moment the file moves, and it bypasses the barrel — so a symbol that
+is deliberately *not* re-exported from `@repositories` can still be imported, which is the thing the
+barrel exists to control.
+
+**What we should do.** `import { UserStatusEnum, UserStatusEnumArray } from "@repositories";`.
+One line. Worth grepping for other relative climbs at the same time — this is the only one.
+
+## §P6 The status field documents its example as the whole enum — 🟡 hygiene / 📄 doc — CONFIRMED
+
+**Where:** `src/settings/users/dto/create-user.dto.ts:52-56`
+
+**What this is.** `@ApiProperty({ example, enum })` drives what `/docs` shows for a field.
+
+**Why this can happen.** `example: UserStatusEnumArray` passes the **array** as the example for a
+field that takes one value, so Scalar renders `["active","inactive","suspended","blocked"]` as the
+sample request value. `enum: UserStatusEnumArray` beside it is correct.
+
+**What it costs.** Anyone using the "try it" panel sends an array and gets a 422. Cosmetic, but it is
+the first thing a consumer of this endpoint sees.
+
+**What we should do.** `example: "active"`. One word.
+
+## §P7 Creating a duplicate permission returns 500 rather than 422 — 🟠 latent risk — CONFIRMED
+
+**Where:** `libs/repositories/src/repositories/permission.repository.ts:158`,
+`src/settings/permissions/permissions.service.ts:18-22`
+
+**What this is.** `permissions.name` carries a unique constraint — the seeder relies on it, using
+`onConflictDoNothing`.
+
+**Why this can happen.** The API create path has neither a uniqueness check in the service nor a
+conflict clause on the insert. A repeated name raises a raw Postgres constraint violation, which
+`ResponseHandler.handleError` does not recognise and returns as a generic 500.
+
+**What it costs.** An operator creating a permission that already exists gets "Internal Server Error"
+instead of a field-mapped 422 — and `CLAUDE.md` states uniqueness failures are 422 in this codebase.
+It is also noise in error monitoring for an ordinary user mistake.
+
+**What we should do.** Check the names first in the service and throw
+`UnprocessableEntityException` with a field map, matching every other uniqueness check in the tree.
+Under an hour. The sibling `clean-nest-prisma-pg` uses `skipDuplicates: true`, which avoids the 500
+but silently succeeds without creating anything — arguably worse, and worth deciding together.
+
+## §P8 The verification-token lifetime is inlined next to the helper that exists for it — 🟠 inconsistency — CONFIRMED
+
+**Where:** `src/settings/users/users.service.ts:73` against `:113`
+
+**What this is.** `libs/utils/src/default/token-lifetime.ts` exports `emailVerificationLifetime()` as
+a **function** specifically so the expiry is computed per token rather than frozen at module load —
+a defect this workspace has already fixed once, in `clean-elysia`.
+
+**Why this can happen.** `create` writes `expired_at: DateUtils.addHours(DateUtils.now(), 2).toDate()`
+inline; `resendVerificationEmail`, forty lines below in the same file, correctly calls
+`emailVerificationLifetime()`. Both currently produce two hours.
+
+**What it costs.** Nothing today — the values agree. The moment the lifetime changes in
+`token-lifetime.ts`, tokens minted by admin user-creation keep the old window and tokens from the
+resend path get the new one, with no error anywhere.
+
+**What we should do.** Call `emailVerificationLifetime()` in both. One line.
+
+## §P9 One uniqueness message is a hardcoded English literal — 📄 doc / 🟠 — CONFIRMED
+
+**Where:** `src/settings/users/users.service.ts:157-161`
+
+**What this is.** `i18n.md` is unambiguous: never hardcode a user-facing literal in a service. The
+`create` method twelve lines above correctly uses `this.i18n.t("message.user.email_exists")`.
+
+**Why this can happen.** `update`'s duplicate-email branch was written with the literal inline, in
+both the message and the field array.
+
+**What it costs.** A client sending `Accept-Language: id` gets Indonesian for every other error on
+this endpoint and English for this one. The key it needs already exists and is already used in the
+same file.
+
+**What we should do.** Replace both with `this.i18n.t("message.user.email_exists")`. Minutes. This is
+the same shape as §R6.2, which was found and fixed in `auth.service.ts` — this is the settings-layer
+instance the earlier sweep did not reach.
+
+---
+
+## Verified correct — checked, nothing found
+
+- **The i18n catalogues are in exact parity.** `message.json` 60/60, `validation.json` 7/7,
+  `email.json` 2/2 between `en` and `id`, with no key present in one and missing from the other. A
+  reverse check — every `t("...")` and `i18nValidationMessage("...")` in `src/` and `libs/` resolved
+  against the catalogue — found **no missing key**, so no raw key string can reach a client. Six
+  catalogue entries are unused, which is harmless.
+- **`CustomValidationPipe` is solid.** `whitelist` and `forbidNonWhitelisted` are both on, so unknown
+  properties are stripped and rejected rather than passed through; `transform` with implicit
+  conversion is enabled; the `key|{args}` encoding from `i18nValidationMessage` is decoded and
+  translated with the field name injected as both `property` and `field`; nested errors are flattened
+  with dotted paths. Nothing to change.
+- **Every DTO decorator carries an i18n message.** No class-validator constraint in any of the nine
+  DTOs falls back to the library's own English string.
+- **The privilege-granting route is gated correctly.** `PATCH /settings/users/:id/password` is
+  `@RoleAuth("superuser")`, not a permission — matching the convention in `rbac`-equivalent rules and
+  both Elysia siblings.
+- **`HashUtils` is correct.** bcrypt with a cost of 10 — defensible today; 12 would be the current
+  default if it is ever revisited, but this is not a finding.
