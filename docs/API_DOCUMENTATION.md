@@ -156,6 +156,18 @@ PATCH  /settings/permissions/:id              role: superuser
 DELETE /settings/permissions/:id              role: superuser
 ```
 
+**Creating permissions.** `POST /settings/permissions` takes a group and a list of **actions**, and
+stores each as `<group>:<action>`:
+
+```jsonc
+{ "group": "report", "actions": ["export", "archive"] }
+// -> creates report:export and report:archive
+```
+
+The body field is `actions`, not `names` — they are action names, not full permission names, and the
+composition happens server-side. `PATCH /settings/permissions/:id` takes `{ group, action }` for the
+same reason. A name that already exists is a 422 naming each collision, not a 500.
+
 Permission strings are `entity:action` with a singular entity. The seeded catalogue is the cross
 product of `user`, `role`, `permission` and `list`, `create`, `view`, `update`, `delete`, `restore` —
 **18 permissions and no others**. See [SECURITY.md](./SECURITY.md).

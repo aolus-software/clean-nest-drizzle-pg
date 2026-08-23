@@ -1,6 +1,7 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
 	index,
+	uniqueIndex,
 	pgEnum,
 	pgTable,
 	timestamp,
@@ -31,7 +32,7 @@ export const users_table = pgTable(
 	{
 		id: uuid().primaryKey().defaultRandom(),
 		name: varchar({ length: 255 }).notNull(),
-		email: varchar({ length: 255 }).notNull().unique(),
+		email: varchar({ length: 255 }).notNull(),
 		status: user_status_enum().default("active"),
 		remark: varchar({ length: 255 }),
 		password: varchar({ length: 255 }).notNull(),
@@ -48,6 +49,16 @@ export const users_table = pgTable(
 			table.deleted_at,
 			table.status,
 		),
+		/* Uniqueness among LIVE users only. A plain unique constraint on email
+		   cannot see deleted_at, so it kept a soft-deleted user's address
+		   reserved forever: the service check (which does filter deleted_at)
+		   said the address was free, the constraint disagreed, and the insert
+		   surfaced as a 500. Scoping the index to deleted_at IS NULL keeps the
+		   database-level guarantee for live rows and lets a deleted user's
+		   address be reused, which is what soft delete is for. */
+		uniqueIndex("users_email_unique_live")
+			.on(table.email)
+			.where(sql`${table.deleted_at} is null`),
 	],
 );
 

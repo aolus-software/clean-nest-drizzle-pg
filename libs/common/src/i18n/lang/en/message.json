@@ -69,6 +69,8 @@
 		"found_success": "Permission retrieved successfully",
 		"update_success": "Permission updated successfully",
 		"delete_success": "Permission deleted successfully",
-		"not_found": "Permission with ID {id} not found"
+		"not_found": "Permission with ID {id} not found",
+		"already_exists": "Permission already exists",
+		"already_exists_named": "Permission {name} already exists"
 	}
 }

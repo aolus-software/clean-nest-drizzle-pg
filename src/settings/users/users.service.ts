@@ -46,7 +46,12 @@ export class UsersService {
 		}
 
 		const password = await HashUtils.generateHash(createUserDto.password);
-		await db.transaction(async (tx) => {
+
+		/* The mail is enqueued only after the transaction commits. Redis and
+		   Postgres share no transaction, so enqueuing inside the callback lets
+		   the worker send a verification link whose token row is not committed
+		   yet — or send one at all for a create that rolled back. */
+		const token = await db.transaction(async (tx) => {
 			const user = await tx
 				.insert(users_table)
 				.values({
@@ -66,23 +71,24 @@ export class UsersService {
 				});
 			}
 
-			const token = StrUtils.random(255);
+			const verificationToken = StrUtils.random(255);
 			await tx.insert(email_verifications_table).values({
 				user_id: user[0].id,
-				token,
-				expired_at: DateUtils.addHours(DateUtils.now(), 2).toDate(),
+				token: verificationToken,
+				expired_at: emailVerificationLifetime(),
 			});
 
-			// Send verification email
-			await this.mailService.sendMail({
-				subject: this.i18n.t("email.verify_email.subject"),
-				to: createUserDto.email,
-				template: "auth/verify-email",
-				context: {
-					name: createUserDto.name,
-					verifyUrl: `${getEnv().FRONTEND_URL}/verify-email?token=${token}`,
-				},
-			});
+			return verificationToken;
+		});
+
+		await this.mailService.sendMail({
+			subject: this.i18n.t("email.verify_email.subject"),
+			to: createUserDto.email,
+			template: "auth/verify-email",
+			context: {
+				name: createUserDto.name,
+				verifyUrl: `${getEnv().FRONTEND_URL}/verify-email?token=${token}`,
+			},
 		});
 	}
 
@@ -155,9 +161,9 @@ export class UsersService {
 		);
 		if (isEmailExist && isEmailExist.id !== id) {
 			throw new UnprocessableEntityException({
-				message: "Email already exists",
+				message: this.i18n.t("message.user.email_exists"),
 				error: {
-					email: ["Email already exists"],
+					email: [this.i18n.t("message.user.email_exists")],
 				},
 			});
 		}

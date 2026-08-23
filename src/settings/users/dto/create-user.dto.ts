@@ -1,8 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import {
-	UserStatusEnum,
-	UserStatusEnumArray,
-} from "../../../../libs/repositories/src/schema/user.schema";
+import { UserStatusEnum, UserStatusEnumArray } from "@repositories";
 import {
 	IsEmail,
 	IsEnum,
@@ -50,7 +47,7 @@ export class CreateUserDto {
 		message: i18nValidationMessage("validation.IS_ENUM"),
 	})
 	@ApiProperty({
-		example: UserStatusEnumArray,
+		example: "active",
 		description: "The status of the user",
 		enum: UserStatusEnumArray,
 	})

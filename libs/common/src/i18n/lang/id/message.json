@@ -69,6 +69,8 @@
 		"found_success": "Hak akses berhasil diambil",
 		"update_success": "Hak akses berhasil diperbarui",
 		"delete_success": "Hak akses berhasil dihapus",
-		"not_found": "Hak akses dengan ID {id} tidak ditemukan"
+		"not_found": "Hak akses dengan ID {id} tidak ditemukan",
+		"already_exists": "Hak akses sudah ada",
+		"already_exists_named": "Hak akses {name} sudah ada"
 	}
 }

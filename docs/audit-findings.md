@@ -1351,7 +1351,7 @@ relationship to the permission vocabulary.
 spot-check, `libs/utils/src/{date,string,number,logger}` (~750 lines of helpers), the Drizzle schema
 files and migrations, and the `api-response` / `api-datatable-queries` decorators.
 
-## §P1 A permission created through the API can never satisfy a guard — 🔴 bug — CONFIRMED
+## §P1 A permission created through the API can never satisfy a guard — 🔴 bug — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `libs/repositories/src/repositories/permission.repository.ts:153-155` (`create`),
 `src/settings/permissions/permissions.service.ts:58` (`update`),
@@ -1397,7 +1397,7 @@ hour; the risk is entirely in existing rows, so decide whether to migrate any AP
 before changing the composition. **The sibling `clean-nest-prisma-pg` has the identical inversion**
 (`permissions.service.ts:17`).
 
-## §P2 One `sendMail` is still enqueued inside its transaction — 🟠 latent risk — CONFIRMED
+## §P2 One `sendMail` is still enqueued inside its transaction — 🟠 latent risk — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `src/settings/users/users.service.ts:77` (inside the `db.transaction` opened at `:47`)
 
@@ -1465,7 +1465,7 @@ place.
 `PermissionRepository().findById(id)`) and call those. Under an hour. Worth doing when §P1 is fixed,
 since it touches the same permissions service.
 
-## §P5 A DTO imports the schema by relative path, bypassing the alias — 🟡 hygiene — CONFIRMED
+## §P5 A DTO imports the schema by relative path, bypassing the alias — 🟡 hygiene — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `src/settings/users/dto/create-user.dto.ts:2-5`
 
@@ -1482,7 +1482,7 @@ barrel exists to control.
 **What we should do.** `import { UserStatusEnum, UserStatusEnumArray } from "@repositories";`.
 One line. Worth grepping for other relative climbs at the same time — this is the only one.
 
-## §P6 The status field documents its example as the whole enum — 🟡 hygiene / 📄 doc — CONFIRMED
+## §P6 The status field documents its example as the whole enum — 🟡 hygiene / 📄 doc — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `src/settings/users/dto/create-user.dto.ts:52-56`
 
@@ -1497,7 +1497,7 @@ the first thing a consumer of this endpoint sees.
 
 **What we should do.** `example: "active"`. One word.
 
-## §P7 Creating a duplicate permission returns 500 rather than 422 — 🟠 latent risk — CONFIRMED
+## §P7 Creating a duplicate permission returns 500 rather than 422 — 🟠 latent risk — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `libs/repositories/src/repositories/permission.repository.ts:158`,
 `src/settings/permissions/permissions.service.ts:18-22`
@@ -1518,7 +1518,7 @@ It is also noise in error monitoring for an ordinary user mistake.
 Under an hour. The sibling `clean-nest-prisma-pg` uses `skipDuplicates: true`, which avoids the 500
 but silently succeeds without creating anything — arguably worse, and worth deciding together.
 
-## §P8 The verification-token lifetime is inlined next to the helper that exists for it — 🟠 inconsistency — CONFIRMED
+## §P8 The verification-token lifetime is inlined next to the helper that exists for it — 🟠 inconsistency — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `src/settings/users/users.service.ts:73` against `:113`
 
@@ -1536,7 +1536,7 @@ resend path get the new one, with no error anywhere.
 
 **What we should do.** Call `emailVerificationLifetime()` in both. One line.
 
-## §P9 One uniqueness message is a hardcoded English literal — 📄 doc / 🟠 — CONFIRMED
+## §P9 One uniqueness message is a hardcoded English literal — 📄 doc / 🟠 — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `src/settings/users/users.service.ts:157-161`
 
@@ -1698,7 +1698,7 @@ offset-less input outright would close it for good and is worth considering.
 > its comment claimed the opposite — that dates resolved in `APP_TIMEZONE`. The claim was propagated
 > into `docs/API_DOCUMENTATION.md` before being tested. Both are now corrected, and the claim is true.
 
-## §P14 Stack traces and debug logs are suppressed in the one environment that needs them — 🟠 inconsistency — CONFIRMED
+## §P14 Stack traces and debug logs are suppressed in the one environment that needs them — 🟠 inconsistency — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `libs/utils/src/logger/logger.utils.ts:6`, `ecosystem.config.js`,
 `libs/config/src/env/index.ts` (the `NODE_ENV` choices)
@@ -1726,7 +1726,7 @@ on a circular structure, and database driver errors frequently carry one — so 
 the 500 handler can itself throw, turning a handled error into an unhandled one with nothing logged.
 Wrap the serialisation in a `try/catch` or use a safe stringifier.
 
-## §P15 Re-creating a soft-deleted user's email address returns 500 — 🔴 bug — CONFIRMED
+## §P15 Re-creating a soft-deleted user's email address returns 500 — 🔴 bug — CONFIRMED — ✅ RESOLVED 2026-08-23
 
 **Where:** `libs/repositories/src/schema/user.schema.ts:34` (`.unique()` on `email`),
 `src/settings/users/users.service.ts` (`create`'s uniqueness check),

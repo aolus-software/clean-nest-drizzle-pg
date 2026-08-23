@@ -1,6 +1,6 @@
 import { DatatableType, PaginationResponse, SortDirection } from "@common";
 import { db, DbTransaction } from "@repositories";
-import { and, asc, desc, eq, ilike, or, SQL } from "drizzle-orm";
+import { and, asc, inArray, desc, eq, ilike, or, SQL } from "drizzle-orm";
 import { permissions_table } from "../schema/rbac.schema";
 import { defaultSort } from "@utils";
 import { BadRequestException } from "@nestjs/common";
@@ -145,17 +145,40 @@ export const PermissionRepository = () => {
 		},
 
 		create: async (
-			permissionData: { names: string[]; group: string },
+			permissionData: { actions: string[]; group: string },
 			tx?: DbTransaction,
 		): Promise<void> => {
 			const database = tx || dbInstance;
 
-			const values = permissionData.names.map((name) => ({
-				name: `${name}:${permissionData.group}`,
+			/* `<group>:<action>` — the order the seeder produces and every
+			   @PermissionAuth string is written in. Composing it the other way
+			   round yields a row no guard can ever match. */
+			const values = permissionData.actions.map((action) => ({
+				name: `${permissionData.group}:${action}`,
 				group: permissionData.group,
 			}));
 
 			await database.insert(permissions_table).values(values);
+		},
+
+		/* Which of these names already exist. Returns the collisions so the
+		   service can name every one of them in a 422, rather than letting the
+		   unique index on permissions.name surface as an unhandled 500. */
+		findExistingByNames: async (
+			names: string[],
+			tx?: DbTransaction,
+		): Promise<string[]> => {
+			const database = tx || dbInstance;
+			if (names.length === 0) {
+				return [];
+			}
+
+			const rows = await database
+				.select({ name: permissions_table.name })
+				.from(permissions_table)
+				.where(inArray(permissions_table.name, names));
+
+			return rows.map((row) => row.name);
 		},
 
 		findOne: async (id: string): Promise<PermissionList | null> => {
