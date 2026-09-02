@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { UserStatusEnum, UserStatusEnumArray } from "@repositories";
+import { type UserStatusEnum, UserStatusEnumArray } from "@repositories";
 import { IsNotEmpty, IsEnum } from "class-validator";
 import { i18nValidationMessage } from "nestjs-i18n";
 export class UpdateStatusDto {
