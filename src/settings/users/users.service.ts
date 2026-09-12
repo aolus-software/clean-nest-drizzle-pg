@@ -12,6 +12,7 @@ import {
 	UserDetail,
 	UserList,
 	UserRepository,
+	user_roles_table,
 	users_table,
 } from "@repositories";
 import { DatatableType, MailService, PaginationResponse } from "@common";
@@ -41,6 +42,21 @@ export class UsersService {
 				message: this.i18n.t("message.user.email_exists"),
 				error: {
 					email: [this.i18n.t("message.user.email_exists")],
+				},
+			});
+		}
+
+		const rolesExist = await db.query.roles.findMany({
+			where: (roles_table, { inArray }) =>
+				inArray(roles_table.id, createUserDto.roleIds),
+			columns: { id: true },
+		});
+
+		if (rolesExist.length !== createUserDto.roleIds.length) {
+			throw new UnprocessableEntityException({
+				message: this.i18n.t("message.user.roles_invalid"),
+				error: {
+					roleIds: [this.i18n.t("message.user.roles_invalid")],
 				},
 			});
 		}
@@ -77,6 +93,15 @@ export class UsersService {
 				token: verificationToken,
 				expired_at: emailVerificationLifetime(),
 			});
+
+			if (createUserDto.roleIds.length > 0) {
+				await tx.insert(user_roles_table).values(
+					createUserDto.roleIds.map((roleId) => ({
+						user_id: user[0].id,
+						role_id: roleId,
+					})),
+				);
+			}
 
 			return verificationToken;
 		});
@@ -168,6 +193,21 @@ export class UsersService {
 			});
 		}
 
+		const rolesExist = await db.query.roles.findMany({
+			where: (roles_table, { inArray }) =>
+				inArray(roles_table.id, updateUserDto.roleIds),
+			columns: { id: true },
+		});
+
+		if (rolesExist.length !== updateUserDto.roleIds.length) {
+			throw new UnprocessableEntityException({
+				message: this.i18n.t("message.user.roles_invalid"),
+				error: {
+					roleIds: [this.i18n.t("message.user.roles_invalid")],
+				},
+			});
+		}
+
 		await db.transaction(async (tx) => {
 			await tx
 				.update(users_table)
@@ -178,6 +218,17 @@ export class UsersService {
 					status: updateUserDto.status,
 				})
 				.where(eq(users_table.id, id));
+
+			await tx.delete(user_roles_table).where(eq(user_roles_table.user_id, id));
+
+			if (updateUserDto.roleIds.length > 0) {
+				await tx.insert(user_roles_table).values(
+					updateUserDto.roleIds.map((roleId) => ({
+						user_id: id,
+						role_id: roleId,
+					})),
+				);
+			}
 		});
 
 		/* AuthStrategy resolves the caller's roles and permissions from this
