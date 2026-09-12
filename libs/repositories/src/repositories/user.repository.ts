@@ -18,13 +18,12 @@ import {
 	UserStatusEnumArray,
 } from "@repositories/schema";
 import { DatatableType, PaginationResponse, SortDirection } from "@common";
-import { defaultSort, HashUtils } from "@utils";
+import { defaultSort } from "@utils";
 import { db } from "@repositories";
 import {
 	BadRequestException,
 	NotFoundException,
 	UnauthorizedException,
-	UnprocessableEntityException,
 } from "@nestjs/common";
 import { I18nContext } from "nestjs-i18n";
 
@@ -36,15 +35,6 @@ export type UserList = {
 	roles: string[] | null;
 	created_at: Date | null;
 	updated_at: Date | null;
-};
-
-export type UserCreate = {
-	name: string;
-	email: string;
-	password: string;
-	status?: UserStatusEnum;
-	remark?: string;
-	role_ids?: string[];
 };
 
 export type UserDetail = {
@@ -297,65 +287,6 @@ export const UserRepository = () => {
 			};
 		},
 
-		create: async (data: UserCreate, tx?: DbTransaction): Promise<void> => {
-			const database = tx || dbInstance;
-
-			// validate is the email exist
-			const isEmailExist = await database
-				.select()
-				.from(users_table)
-				.where(
-					and(
-						eq(users_table.email, data.email),
-						isNull(users_table.deleted_at),
-					),
-				)
-				.limit(1);
-
-			if (isEmailExist.length > 0) {
-				const i18n = I18nContext.current();
-				throw new UnprocessableEntityException({
-					message:
-						i18n?.t("message.common.unprocessable_entity") ??
-						"Unprocessable Entity",
-					errors: [
-						{
-							field: "email",
-							message:
-								i18n?.t("message.user.email_exists") ?? "Email already exists",
-						},
-					],
-				});
-			}
-
-			const hashedPassword = await HashUtils.generateHash(data.password);
-			const user = await database
-				.insert(users_table)
-				.values({
-					name: data.name,
-					email: data.email,
-					password: hashedPassword,
-					status: data.status || "active",
-					remark: data.remark || null,
-				})
-				.returning();
-
-			if (data.role_ids && data.role_ids.length > 0) {
-				if (user.length > 0) {
-					const userId = user[0].id;
-					const userRoles: {
-						user_id: string;
-						role_id: string;
-					}[] = data.role_ids.map((roleId) => ({
-						user_id: userId,
-						role_id: roleId,
-					}));
-
-					await database.insert(user_roles_table).values(userRoles);
-				}
-			}
-		},
-
 		getDetail: async (
 			userId: string,
 			tx?: DbTransaction,
@@ -413,54 +344,6 @@ export const UserRepository = () => {
 				created_at: user.created_at,
 				updated_at: user.updated_at,
 			};
-		},
-
-		update: async (
-			userId: string,
-			data: Omit<UserCreate, "password">,
-			tx?: DbTransaction,
-		): Promise<void> => {
-			const database = tx || dbInstance;
-			const user = await database.query.users.findFirst({
-				where: and(eq(users_table.id, userId), isNull(users_table.deleted_at)),
-			});
-
-			if (!user) {
-				throw new NotFoundException(
-					I18nContext.current()?.t("message.common.user_not_found") ??
-						"User not found",
-				);
-			}
-
-			await database
-				.update(users_table)
-				.set({
-					name: data.name,
-					email: data.email,
-					status: data.status || user.status,
-					remark: data.remark || user.remark,
-				})
-				.where(eq(users_table.id, userId));
-
-			// remove all role or adding new role
-			if (data.role_ids && data.role_ids.length > 0) {
-				await database
-					.delete(user_roles_table)
-					.where(eq(user_roles_table.user_id, userId));
-
-				const userRoles: {
-					user_id: string;
-					role_id: string;
-				}[] = data.role_ids.map((roleId) => ({
-					user_id: userId,
-					role_id: roleId,
-				}));
-				await database.insert(user_roles_table).values(userRoles);
-			} else {
-				await database
-					.delete(user_roles_table)
-					.where(eq(user_roles_table.user_id, userId));
-			}
 		},
 
 		delete: async (userId: string, tx?: DbTransaction): Promise<void> => {

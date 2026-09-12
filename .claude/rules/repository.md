@@ -38,7 +38,7 @@ Repositories must **never** open their own transaction (`db.transaction(...)`). 
 
 ## Types
 
-- Define every exported type (`UserList`, `UserDetail`, `UserCreate`, `UserInformation`, etc.) in the same file, above the factory function. Mutation inputs are explicit named types (`UserCreate`), not the DTO.
+- Define every exported type (`UserList`, `UserDetail`, `UserInformation`, etc.) in the same file, above the factory function. A repository method that takes a mutation input types it explicitly, not as the DTO.
 - No `any` — ever. Use Drizzle's typed helpers and `SQL` from `drizzle-orm`.
 - Build `where` clauses as `SQL | undefined` and compose with `and(...)`, `or(...)`, `eq(...)`, `ilike(...)`, `isNull(...)` from `drizzle-orm`.
 
