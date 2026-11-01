@@ -33,8 +33,8 @@ export type UserList = {
 	email: string;
 	status: UserStatusEnum | null;
 	roles: string[] | null;
-	created_at: Date | null;
-	updated_at: Date | null;
+	createdAt: Date | null;
+	updatedAt: Date | null;
 };
 
 export type UserDetail = {
@@ -47,8 +47,8 @@ export type UserDetail = {
 		id: string;
 		name: string;
 	}[];
-	created_at: Date | null;
-	updated_at: Date | null;
+	createdAt: Date | null;
+	updatedAt: Date | null;
 };
 
 export type UserForAuth = {
@@ -272,8 +272,8 @@ export const UserRepository = () => {
 				email: user.email,
 				status: user.status,
 				roles: user.user_roles.map((userRole) => userRole.role.name),
-				created_at: user.created_at,
-				updated_at: user.updated_at,
+				createdAt: user.created_at,
+				updatedAt: user.updated_at,
 			}));
 
 			return {
@@ -341,8 +341,8 @@ export const UserRepository = () => {
 					id: userRole.role.id,
 					name: userRole.role.name,
 				})),
-				created_at: user.created_at,
-				updated_at: user.updated_at,
+				createdAt: user.created_at,
+				updatedAt: user.updated_at,
 			};
 		},
 

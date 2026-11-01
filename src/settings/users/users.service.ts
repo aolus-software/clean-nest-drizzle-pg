@@ -231,11 +231,10 @@ export class UsersService {
 			}
 		});
 
-		/* AuthStrategy resolves the caller's roles and permissions from this
-		   cache entry, so a write that changes identity or authorization has to
-		   drop it. Leaving it means a revoked role stays in force until the
-		   entry expires. */
-		await this.cacheService.del(UserCache(id));
+		/* AuthStrategy resolves the caller's roles and permissions from the
+		   cached user, so this write drops it. A user who is no longer active
+		   also loses the stored refresh-token id, ending every session. */
+		await this.dropSession(id, updateUserDto.status);
 	}
 
 	async remove(id: string): Promise<void> {
@@ -255,11 +254,7 @@ export class UsersService {
 				.where(eq(users_table.id, id));
 		});
 
-		/* AuthStrategy resolves the caller's roles and permissions from this
-		   cache entry, so a write that changes identity or authorization has to
-		   drop it. Leaving it means a revoked role stays in force until the
-		   entry expires. */
-		await this.cacheService.del(UserCache(id));
+		await this.cacheService.revokeSession(id);
 	}
 
 	async updateStatus(id: string, data: UpdateStatusDto): Promise<void> {
@@ -280,11 +275,7 @@ export class UsersService {
 				.where(eq(users_table.id, id));
 		});
 
-		/* AuthStrategy resolves the caller's roles and permissions from this
-		   cache entry, so a write that changes identity or authorization has to
-		   drop it. Leaving it means a revoked role stays in force until the
-		   entry expires. */
-		await this.cacheService.del(UserCache(id));
+		await this.dropSession(id, data.status);
 	}
 
 	async updatePassword(id: string, data: UpdatePasswordDto): Promise<void> {
@@ -302,6 +293,8 @@ export class UsersService {
 				password: hashedPassword,
 			})
 			.where(eq(users_table.id, id));
+
+		await this.cacheService.revokeSession(id);
 	}
 
 	async sendForgotPasswordEmail(id: string): Promise<void> {
@@ -326,5 +319,13 @@ export class UsersService {
 				resetUrl: `${getEnv().FRONTEND_URL}/reset-password?token=${token}`,
 			},
 		});
+	}
+
+	private async dropSession(id: string, status: string): Promise<void> {
+		if (status === "active") {
+			await this.cacheService.del(UserCache(id));
+			return;
+		}
+		await this.cacheService.revokeSession(id);
 	}
 }

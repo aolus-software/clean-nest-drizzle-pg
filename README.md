@@ -47,6 +47,7 @@ A production-ready **Clean Architecture** boilerplate built with [NestJS](https:
 ├── src/
 │   ├── auth/                 # Authentication module
 │   ├── health/               # Health check endpoints
+│   ├── profile/              # Own-account actions (PATCH /profile/password)
 │   ├── settings/             # Settings module (users, roles, permissions)
 │   ├── app.module.ts         # Root application module
 │   └── main.ts               # Application entry point

@@ -1,7 +1,6 @@
 import { Global, Module } from "@nestjs/common";
 import { CacheModule as NestCacheManager } from "@nestjs/cache-manager";
 import KeyvRedis from "@keyv/redis";
-import Keyv from "keyv";
 import { CacheService } from "./cache.service";
 import { getEnv } from "@config";
 
@@ -11,7 +10,12 @@ import { getEnv } from "@config";
    store: nothing was ever written to Redis. That matters under PM2, which runs
    `instances: "max"` in production, because each worker then holds its own copy
    and an invalidation on one worker leaves the others serving stale roles and
-   permissions. */
+   permissions.
+
+   Keyv is loaded with import() so its type resolves to the ESM declaration
+   that @nestjs/cache-manager's ESM types expect; a static import from this
+   CommonJS project resolves the .d.cts copy, which TypeScript treats as an
+   unrelated class. */
 const redisUrl = (): string => {
 	const password = getEnv().REDIS_PASSWORD;
 	const credentials = password ? `:${encodeURIComponent(password)}@` : "";
@@ -22,16 +26,19 @@ const redisUrl = (): string => {
 @Module({
 	imports: [
 		NestCacheManager.registerAsync({
-			useFactory: () => ({
-				stores: [
-					new Keyv({
-						store: new KeyvRedis(redisUrl()),
-						namespace: undefined,
-						useKeyPrefix: false,
-					}),
-				],
-				ttl: getEnv().REDIS_TTL * 1000,
-			}),
+			useFactory: async () => {
+				const { Keyv } = await import("keyv");
+				return {
+					stores: [
+						new Keyv({
+							store: new KeyvRedis(redisUrl()),
+							namespace: undefined,
+							useKeyPrefix: false,
+						}),
+					],
+					ttl: getEnv().REDIS_TTL * 1000,
+				};
+			},
 		}),
 	],
 	providers: [CacheService],

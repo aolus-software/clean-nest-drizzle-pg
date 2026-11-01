@@ -4,6 +4,7 @@ import { ServeStaticModule } from "@nestjs/serve-static";
 import { join } from "path";
 import { AuthModule } from "./auth/auth.module";
 import { HealthModule } from "./health/health.module";
+import { ProfileModule } from "./profile/profile.module";
 import { SettingsModule } from "./settings/settings.module";
 import { CommonModule } from "@common";
 
@@ -16,6 +17,7 @@ import { CommonModule } from "@common";
 
 		AuthModule,
 		HealthModule,
+		ProfileModule,
 		SettingsModule,
 	],
 	controllers: [AppController],

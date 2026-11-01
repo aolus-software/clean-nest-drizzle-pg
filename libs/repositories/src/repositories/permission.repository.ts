@@ -10,8 +10,8 @@ export interface PermissionList {
 	id: string;
 	name: string;
 	group: string;
-	created_at: Date;
-	updated_at: Date;
+	createdAt: Date;
+	updatedAt: Date;
 }
 
 /* Sortable columns, keyed by the name the API accepts in ?sort=. Keys are
@@ -134,7 +134,13 @@ export const PermissionRepository = () => {
 			]);
 
 			return {
-				data: data,
+				data: data.map((permission) => ({
+					id: permission.id,
+					name: permission.name,
+					group: permission.group,
+					createdAt: permission.created_at,
+					updatedAt: permission.updated_at,
+				})),
 				meta: {
 					page: page,
 					limit: limit,
@@ -197,25 +203,13 @@ export const PermissionRepository = () => {
 				return null;
 			}
 
-			return permission;
-		},
-
-		update: async (
-			id: string,
-			updateData: { name: string; group: string },
-			tx?: DbTransaction,
-		): Promise<void> => {
-			const database = tx || dbInstance;
-
-			const updatedName = `${updateData.name}:${updateData.group}`;
-
-			await database
-				.update(permissions_table)
-				.set({
-					name: updatedName,
-					group: updateData.group,
-				})
-				.where(eq(permissions_table.id, id));
+			return {
+				id: permission.id,
+				name: permission.name,
+				group: permission.group,
+				createdAt: permission.created_at,
+				updatedAt: permission.updated_at,
+			};
 		},
 
 		remove: async (id: string, tx?: DbTransaction): Promise<void> => {
