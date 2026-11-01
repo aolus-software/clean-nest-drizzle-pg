@@ -44,6 +44,10 @@ The queue is registered with `attempts: 3` and exponential backoff, and the proc
 `@OnWorkerEvent("failed")` handler. Without both, a transient SMTP failure silently and permanently
 drops a verification or reset email — one attempt, no retry, nothing in the logs. Keep them.
 
+The mailer itself is configured with `retry: false`. `@nestjs-modules/mailer` v4 retries transient
+failures on its own by default; with the queue retrying too, each failed job would multiply its
+send attempts. BullMQ is the single retry layer.
+
 ## Templates
 
 `template` is a path (without extension) under the Handlebars templates directory, e.g. `"auth/verify-email"`, `"auth/forgot-password"`. `MailService` automatically injects `appName` and `frontendUrl` into every template context and prefixes the subject with the app name (and `[ENV]` outside production) — do not duplicate those.

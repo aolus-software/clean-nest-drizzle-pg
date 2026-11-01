@@ -13,22 +13,22 @@ import { I18nContext } from "nestjs-i18n";
 export interface RoleList {
 	id: string;
 	name: string;
-	created_at: Date;
-	updated_at: Date;
+	createdAt: Date;
+	updatedAt: Date;
 }
 
 export interface RoleDetail {
 	id: string;
 	name: string;
-	created_at: Date;
-	updated_at: Date;
+	createdAt: Date;
+	updatedAt: Date;
 
 	permissions: {
 		[key: string]: {
 			id: string;
 			name: string;
 			group: string;
-			is_assigned: boolean;
+			isAssigned: boolean;
 		};
 	}[];
 }
@@ -151,7 +151,12 @@ export const RoleRepository = () => {
 			]);
 
 			return {
-				data,
+				data: data.map((role) => ({
+					id: role.id,
+					name: role.name,
+					createdAt: role.created_at,
+					updatedAt: role.updated_at,
+				})),
 				meta: {
 					page,
 					limit,
@@ -242,8 +247,8 @@ export const RoleRepository = () => {
 			return {
 				id: role.id,
 				name: role.name,
-				created_at: role.created_at,
-				updated_at: role.updated_at,
+				createdAt: role.created_at,
+				updatedAt: role.updated_at,
 				permissions: permissions.map((permission) => {
 					const isAssigned = role.role_permissions.some(
 						(rp) => rp.permission.id === permission.id,
@@ -253,7 +258,7 @@ export const RoleRepository = () => {
 							id: permission.id,
 							name: permission.name,
 							group: permission.group,
-							is_assigned: isAssigned,
+							isAssigned,
 						},
 					};
 				}),

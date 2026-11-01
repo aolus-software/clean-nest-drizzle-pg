@@ -24,6 +24,10 @@ import { getEnv } from "@config";
 				defaults: {
 					from: getEnv().MAIL_FROM,
 				},
+				/* Mailer v4 retries transient failures itself by default. The
+				   mail-queue job already retries with backoff, so leaving both on
+				   multiplies attempts; BullMQ stays the single retry layer. */
+				retry: false,
 
 				template: {
 					dir: join(

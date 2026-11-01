@@ -39,6 +39,7 @@ Repositories must **never** open their own transaction (`db.transaction(...)`). 
 ## Types
 
 - Define every exported type (`UserList`, `UserDetail`, `UserInformation`, etc.) in the same file, above the factory function. A repository method that takes a mutation input types it explicitly, not as the DTO.
+- Exported response types use **camelCase** keys (`createdAt`, `updatedAt`, `isAssigned`), matching the Prisma sibling. The columns are snake_case, so the repository maps them (`createdAt: role.created_at`) rather than returning raw rows.
 - No `any` — ever. Use Drizzle's typed helpers and `SQL` from `drizzle-orm`.
 - Build `where` clauses as `SQL | undefined` and compose with `and(...)`, `or(...)`, `eq(...)`, `ilike(...)`, `isNull(...)` from `drizzle-orm`.
 
