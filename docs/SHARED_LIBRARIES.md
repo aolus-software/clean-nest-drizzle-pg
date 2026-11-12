@@ -23,7 +23,7 @@ re-exported from that library's `src/index.ts` or the alias import will not reso
 | Pipes | `CustomValidationPipe` (global; whitelists and translates), `FilterValidationPipe`, `UuidParamPipe` (422 on a malformed `:id`) |
 | Filters | `AllExceptionsFilter` (global; runs `ResponseHandler.handleError` over errors thrown outside a controller) |
 | Response | `ResponseHandler`, `successResponse` |
-| Cache | `CacheService` over Redis via Keyv, and the `UserCache(id)` key builder |
+| Cache | `CacheService` over Redis via Keyv (`delMany` drops several keys in one round trip), and the `UserCache(id)` key builder |
 | Mail | `MailService` (enqueues), `MailProcessor` (consumes), Handlebars templates per locale |
 | Datatable | `parseDateRangeFilter` — the validating date-range parser every list repository uses |
 | i18n | `I18nModule` and the `en` / `id` catalogues |
@@ -43,7 +43,7 @@ is `undefined` outside a request.
 
 ## `@repositories`
 
-`db` is a module-level singleton built from `DATABASE_URL` and exported from `libs/repositories/src/index.ts` — there is no injectable provider, so a feature module does not import a "RepositoriesModule" to query.
+`db` is a module-level singleton built from `DATABASE_URL` (pool sized by the `DB_POOL_*` variables, optional query log behind `DB_LOG_QUERIES`) and exported from `libs/repositories/src/index.ts` — there is no injectable provider, so a feature module does not import a "RepositoriesModule" to query.
 
 Repositories are **factory functions**, not injectable classes:
 

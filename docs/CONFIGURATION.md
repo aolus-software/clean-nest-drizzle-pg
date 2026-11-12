@@ -30,6 +30,13 @@ the `cleanEnv` schema, and the returned object — then `.env.example` and this 
 | Variable | Default | Notes |
 | -------- | ------- | ----- |
 | `DATABASE_URL` | **required** | PostgreSQL connection string, consumed by the `db` singleton exported from `libs/repositories/src/index.ts` |
+| `DB_POOL_MAX` | `10` | Pool size per process; must be an integer of at least 1. PM2 cluster mode multiplies it by the worker count |
+| `DB_POOL_IDLE_TIMEOUT_MS` | `30000` | An idle connection is closed after this long |
+| `DB_POOL_CONNECTION_TIMEOUT_MS` | `5000` | A query waiting for a free connection fails after this long |
+| `DB_LOG_QUERIES` | `false` | Drizzle logs each statement through `LoggerUtils.debug` (text and parameter count, never parameter values). `LoggerUtils.debug` is silent unless `NODE_ENV` is `development` or `dev` |
+
+`POSTGRES_SLOW_QUERY_MS` (default `100`) is read only by `docker-compose.yml`: the postgres container
+logs every statement slower than this many milliseconds (`log_min_duration_statement`); `-1` disables it.
 
 ## Authentication
 

@@ -1,5 +1,6 @@
 import { relations } from "drizzle-orm";
 import {
+	index,
 	pgTable,
 	uuid,
 	varchar,
@@ -45,9 +46,10 @@ export const role_permissions_table = pgTable(
 			.notNull()
 			.references(() => permissions_table.id, { onDelete: "cascade" }),
 	},
-	(table) => ({
-		pk: primaryKey({ columns: [table.role_id, table.permission_id] }),
-	}),
+	(table) => [
+		primaryKey({ columns: [table.role_id, table.permission_id] }),
+		index("role_permissions_permission_id_index").on(table.permission_id),
+	],
 );
 
 export const role_permissions_relations = relations(
@@ -75,9 +77,10 @@ export const user_roles_table = pgTable(
 			.references(() => roles_table.id, { onDelete: "cascade" }),
 		assigned_at: timestamp().defaultNow().notNull(),
 	},
-	(table) => ({
-		pk: primaryKey({ columns: [table.user_id, table.role_id] }),
-	}),
+	(table) => [
+		primaryKey({ columns: [table.user_id, table.role_id] }),
+		index("user_roles_role_id_index").on(table.role_id),
+	],
 );
 
 export const user_roles_relations = relations(user_roles_table, ({ one }) => ({

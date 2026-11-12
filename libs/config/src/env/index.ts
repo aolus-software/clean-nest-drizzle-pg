@@ -1,4 +1,14 @@
-import { cleanEnv, str, num, port, bool } from "envalid";
+import { cleanEnv, str, num, port, bool, makeValidator } from "envalid";
+
+/* A pool of zero connections never serves a query: every request would wait
+   out the connection timeout and fail, so reject it at boot instead. */
+const positiveInt = makeValidator<number>((input: string): number => {
+	const value = Number(input);
+	if (!Number.isInteger(value) || value < 1) {
+		throw new Error("must be an integer >= 1");
+	}
+	return value;
+});
 
 interface IEnvConfig {
 	APP_NAME: string;
@@ -13,6 +23,10 @@ interface IEnvConfig {
 	FRONTEND_URL: string;
 
 	DATABASE_URL: string;
+	DB_POOL_MAX: number;
+	DB_POOL_IDLE_TIMEOUT_MS: number;
+	DB_POOL_CONNECTION_TIMEOUT_MS: number;
+	DB_LOG_QUERIES: boolean;
 
 	JWT_SECRET: string;
 	JWT_REFRESH_SECRET: string;
@@ -69,6 +83,12 @@ export function getEnv(): IEnvConfig {
 		FRONTEND_URL: str({ default: "http://localhost:3000" }),
 
 		DATABASE_URL: str(),
+		/* Per-process pool. PM2 cluster mode opens one pool per worker, so the
+		   server sees up to workers x DB_POOL_MAX connections. */
+		DB_POOL_MAX: positiveInt({ default: 10 }),
+		DB_POOL_IDLE_TIMEOUT_MS: num({ default: 30000 }),
+		DB_POOL_CONNECTION_TIMEOUT_MS: num({ default: 5000 }),
+		DB_LOG_QUERIES: bool({ default: false }),
 
 		JWT_SECRET: str(),
 		JWT_REFRESH_SECRET: str(),
@@ -111,6 +131,10 @@ export function getEnv(): IEnvConfig {
 		FRONTEND_URL: env.FRONTEND_URL,
 
 		DATABASE_URL: env.DATABASE_URL,
+		DB_POOL_MAX: env.DB_POOL_MAX,
+		DB_POOL_IDLE_TIMEOUT_MS: env.DB_POOL_IDLE_TIMEOUT_MS,
+		DB_POOL_CONNECTION_TIMEOUT_MS: env.DB_POOL_CONNECTION_TIMEOUT_MS,
+		DB_LOG_QUERIES: env.DB_LOG_QUERIES,
 
 		JWT_SECRET: env.JWT_SECRET,
 		JWT_REFRESH_SECRET: env.JWT_REFRESH_SECRET,

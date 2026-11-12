@@ -24,6 +24,17 @@ export const user_status_enum = pgEnum("user_status", ["active", "inactive", "su
 - Timestamps: `created_at: timestamp().defaultNow()` and `updated_at: timestamp().defaultNow().$onUpdate(() => new Date())`.
 - Soft delete: include `deleted_at: timestamp()` on entities that are soft-deleted, and add a composite index covering the columns queried together (e.g. `email`, `deleted_at`, `status`).
 
+## Indexes
+
+- `.unique()` already creates a unique index; never add a plain `index()` on the same column.
+- A composite primary key only serves lookups by its leading column. `user_roles` and
+  `role_permissions` carry `user_roles_role_id_index` and `role_permissions_permission_id_index` for
+  "who holds this role", "which roles grant this permission", and the `ON DELETE CASCADE` from
+  `roles` / `permissions`.
+- `users_created_at_live_index` is a partial index on `created_at WHERE deleted_at IS NULL`, the
+  default user list order (`defaultSort`). Change it with the default sort.
+- The token tables index `(user_id, used_at)` for the `user_id` foreign key and per-user token lookups.
+
 ## Relations
 
 Declare a `<entity>_relations` export with `relations(...)` next to each table for the relational query API (`db.query.<table>.findMany({ with: ... })`).

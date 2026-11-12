@@ -23,7 +23,9 @@ Two things must stay in sync or the process exits at boot:
 
 **Production runs in cluster mode with `instances: "max"`.** Two consequences: in-memory state is not
 shared between workers, so anything cross-request must go through Redis; and side-effectful module
-loads — BullMQ workers, scheduled jobs — happen once *per worker*.
+loads — BullMQ workers, scheduled jobs — happen once *per worker*. That includes the PostgreSQL pool:
+each worker opens up to `DB_POOL_MAX` connections, so keep `workers x DB_POOL_MAX` under the server's
+`max_connections`.
 
 ## Deploying
 
