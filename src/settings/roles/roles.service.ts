@@ -31,9 +31,7 @@ export class RolesService {
 	   caller who made the change. */
 	private async invalidateRoleHolders(roleId: string): Promise<void> {
 		const userIds = await UserRepository().findIdsByRole(roleId);
-		await Promise.all(
-			userIds.map((userId) => this.cacheService.del(UserCache(userId))),
-		);
+		await this.cacheService.delMany(userIds.map(UserCache));
 	}
 
 	async create(createRoleDto: CreateRoleDto): Promise<void> {
@@ -139,8 +137,6 @@ export class RolesService {
 			await RoleRepository().delete(id, tx);
 		});
 
-		await Promise.all(
-			userIds.map((userId) => this.cacheService.del(UserCache(userId))),
-		);
+		await this.cacheService.delMany(userIds.map(UserCache));
 	}
 }

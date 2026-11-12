@@ -17,7 +17,12 @@ export const email_verifications_table = pgTable(
 			.defaultNow()
 			.$onUpdate(() => new Date()),
 	},
-	(table) => [index("email_verifications_token_index").on(table.token)],
+	(table) => [
+		index("email_verifications_user_id_used_at_index").on(
+			table.user_id,
+			table.used_at,
+		),
+	],
 );
 
 export const email_verifications_relations = relations(

@@ -17,7 +17,12 @@ export const password_reset_tokens_table = pgTable(
 			.defaultNow()
 			.$onUpdate(() => new Date()),
 	},
-	(table) => [index("password_reset_tokens_token_index").on(table.token)],
+	(table) => [
+		index("password_reset_tokens_user_id_used_at_index").on(
+			table.user_id,
+			table.used_at,
+		),
+	],
 );
 
 export const password_reset_tokens_relations = relations(

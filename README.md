@@ -373,6 +373,10 @@ Without PM2, `make deploy-prep` still performs the install, migrate, and build s
 | `API_DOCS_ENABLED`       | Mount the Scalar API reference at `/docs` | `false`         |
 | `FRONTEND_URL`           | Frontend application URL           | `http://localhost:3000`      |
 | `DATABASE_URL`           | PostgreSQL connection string       | -                            |
+| `DB_POOL_MAX`            | Pool size per process (>= 1)       | `10`                         |
+| `DB_POOL_IDLE_TIMEOUT_MS` | Idle connection close delay (ms)  | `30000`                      |
+| `DB_POOL_CONNECTION_TIMEOUT_MS` | Wait for a free connection (ms) | `5000`                  |
+| `DB_LOG_QUERIES`         | Debug-log SQL text (no parameter values) | `false`                |
 | `JWT_SECRET`             | JWT signing secret                 | -                            |
 | `JWT_REFRESH_SECRET`     | Refresh token secret               | -                            |
 | `JWT_EXPIRES_IN`         | Access token expiry                | `1d`                         |

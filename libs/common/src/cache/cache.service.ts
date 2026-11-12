@@ -27,6 +27,16 @@ export class CacheService {
 		await this._cacheManager.del(key);
 	}
 
+	/* Deletes several keys in one Redis round trip. cache-manager's own mdel
+	   still issues one DEL per key, so this goes to Keyv's deleteMany, which
+	   KeyvRedis sends as one MULTI/EXEC. */
+	async delMany(keys: string[]): Promise<void> {
+		if (keys.length === 0) return;
+		await Promise.all(
+			this._cacheManager.stores.map((store) => store.deleteMany(keys)),
+		);
+	}
+
 	/* Drops the cached user and the stored refresh-token id, so the next request
 	   re-reads the account and every outstanding refresh token is rejected. */
 	async revokeSession(userId: string): Promise<void> {
